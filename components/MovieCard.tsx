@@ -15,7 +15,7 @@ import { Review } from "@/lib/api";
 interface MovieCardProps {
   title: string;
   poster: string;
-  rating: string;
+  rating: number;
   reviews: Review[];
 }
 

@@ -1,9 +1,30 @@
 import Image from "next/image";
+import MovieCard from "@/components/MovieCard";
+import { pbApi } from "@/lib/api/pocketbase";
 
-export default function Home() {
+async function getMovieData(id: string) {
+  try {
+    const movie = await pbApi.getMovie(id);
+
+    return movie;
+  } catch (error) {
+    console.error("Error fetching movie data:", error);
+  }
+}
+
+export default async function Home() {
+  const movie = await getMovieData("6v6233072oj7dtd");
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start"></main>
+      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+        {movie && (
+          <MovieCard
+            title={movie.title}
+            poster={movie.poster_path}
+            rating={movie.tmdb_rating}
+          />
+        )}
+      </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"

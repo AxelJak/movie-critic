@@ -68,8 +68,8 @@ export interface Movie {
   tmdb_id: number;
   title: string;
   original_title: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
+  poster_path: string;
+  backdrop_path: string;
   release_date: string;
   runtime: number | null;
   overview: string;
