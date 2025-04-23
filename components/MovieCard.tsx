@@ -1,64 +1,61 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Review } from "@/lib/api";
+import { Movie, Review } from "@/lib/api";
+import { tmdbApi } from "@/lib/api/tmdb";
 
 interface MovieCardProps {
-  title: string;
-  poster: string;
-  rating: number;
-  reviews: Review[];
+  movie: Movie;
+  reviews?: Review[];
 }
 
-export default function MovieCard({
-  title,
-  poster,
-  rating,
-  reviews,
-}: MovieCardProps) {
+export default function MovieCard({ movie, reviews }: MovieCardProps) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden py-0">
       <div className="flex flex-col sm:flex-row">
-        <div className="relative h-[200px] w-full sm:h-auto sm:w-[200px] flex-shrink-0">
+        <div className="relative sm:h-auto flex-shrink-0">
           <Image
-            src={poster || "/placeholder.svg"}
+            src={tmdbApi.getImageUrl(movie.poster_path, "w200") ?? ""}
             alt="movie_poster"
-            fill
+            height={250}
+            width={125}
             className="object-cover"
           />
         </div>
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 py-3">
           <CardHeader>
-            <CardTitle>{title}</CardTitle>
+            <CardTitle>{movie.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="account" className="w-[400px]">
+            <Tabs defaultValue="overview" className="w-[400px]">
               <TabsList>
-                {reviews.map((review: Review) => (
-                  <TabsTrigger key={review.id} value={`review-${review.id}`}>
-                    {review.user}
-                  </TabsTrigger>
-                ))}
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                {reviews &&
+                  reviews.map((review: Review) => (
+                    <TabsTrigger key={review.id} value={`review-${review.id}`}>
+                      {review.user}
+                    </TabsTrigger>
+                  ))}
               </TabsList>
-              {reviews.map((review: Review) => (
-                <TabsContent key={review.id} value={`review-${review.id}`}>
-                  {review.content}
-                </TabsContent>
-              ))}
+              <TabsContent value="overview">{movie.overview}</TabsContent>
+              {reviews &&
+                reviews.map((review: Review) => (
+                  <TabsContent key={review.id} value={`review-${review.id}`}>
+                    {review.content}
+                  </TabsContent>
+                ))}
             </Tabs>
           </CardContent>
           <CardFooter className="mt-auto">
-            {rating}
-            <Button></Button>
+            {" "}
+            <b>TMDB rating: {Math.round(movie.tmdb_rating * 10) / 10}</b>
           </CardFooter>
         </div>
       </div>
