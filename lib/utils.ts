@@ -35,3 +35,21 @@ export function formatRuntime(minutes: number): string {
   
   return `${hours}h ${mins}m`;
 }
+
+/**
+ * Debounce function for limiting frequency of function calls
+ * @param fn Function to debounce
+ * @param ms Milliseconds to delay
+ * @returns Debounced function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  fn: T, 
+  ms: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  
+  return function(...args: Parameters<T>) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), ms);
+  };
+}

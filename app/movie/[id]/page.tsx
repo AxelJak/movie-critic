@@ -29,8 +29,8 @@ interface PageProps {
 // Function to fetch movie data
 async function getMovieData(id: string) {
   try {
-    const movie = await pbApi.getMovie(id);
-    const cast = await pbApi.getMovieCast(id);
+    const movie = await tmdbApi.getMovieDetails(parseInt(id));
+    const cast = tmdbApi.getCast(movie);
     const reviewsResponse = await pbApi.getMovieReviews(id);
     const reviews = reviewsResponse.items as unknown as ExpandedReview[];
 
