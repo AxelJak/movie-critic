@@ -12,11 +12,12 @@ import { Movie, Review } from "@/lib/api";
 import { tmdbApi } from "@/lib/api/tmdb";
 
 interface MovieCardProps {
-  movie: Movie;
-  reviews?: Review[];
+  reviews: Review[];
 }
 
-export default function MovieCard({ movie, reviews }: MovieCardProps) {
+export default async function MovieCard({ reviews }: MovieCardProps) {
+  const movie = await tmdbApi.getMovieDetails(parseInt(reviews[0].movie));
+
   return (
     <Card className="overflow-hidden py-0">
       <div className="flex flex-col sm:flex-row">
@@ -55,7 +56,7 @@ export default function MovieCard({ movie, reviews }: MovieCardProps) {
           </CardContent>
           <CardFooter className="mt-auto">
             {" "}
-            <b>TMDB rating: {Math.round(movie.tmdb_rating * 10) / 10}</b>
+            <b>TMDB rating: {Math.round(movie.vote_average * 10) / 10}</b>
           </CardFooter>
         </div>
       </div>

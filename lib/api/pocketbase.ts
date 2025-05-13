@@ -21,16 +21,30 @@ class PocketBaseService {
   private static instance: PocketBaseService;
 
   constructor() {
-    this.pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+    if (!process.env.NEXT_PUBLIC_POCKETBASE_URL) {
+      console.error(
+        "NEXT_PUBLIC_POCKETBASE_URL is not defined in environment variables",
+      );
+      throw new Error("PocketBase URL is missing in environment variables");
+    }
 
-    // Load auth data from localStorage when in browser
-    if (typeof window !== "undefined") {
-      this.pb.authStore.loadFromCookie(document.cookie);
+    try {
+      this.pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
 
-      // Add auth state change listener
-      this.pb.authStore.onChange(() => {
-        document.cookie = this.pb.authStore.exportToCookie({ httpOnly: false });
-      });
+      // Load auth data from localStorage when in browser
+      if (typeof window !== "undefined") {
+        this.pb.authStore.loadFromCookie(document.cookie);
+
+        // Add auth state change listener
+        this.pb.authStore.onChange(() => {
+          document.cookie = this.pb.authStore.exportToCookie({
+            httpOnly: false,
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Error initializing PocketBase:", error);
+      throw new Error("Failed to initialize PocketBase client");
     }
   }
 
@@ -93,6 +107,77 @@ class PocketBaseService {
   }
 
   /**
+   * Login with OAuth (Google, Apple)
+   */
+  async loginWithOAuth(provider: "google" | "apple"): Promise<void> {
+    // Get the authorization URL for the provider
+    const authMethods = await this.pb.collection("users").listAuthMethods();
+
+    // Find the auth method for the requested provider
+    const authProvider = authMethods.authProviders.find(
+      (p) => p.name === provider,
+    );
+
+    if (!authProvider) {
+      throw new Error(`Auth provider ${provider} not found or not enabled.`);
+    }
+
+    // Prepare the redirect URL (current URL)
+    const redirectUrl = window.location.origin + "/login";
+
+    // Redirect to the provider's authorization page
+    const url = new URL(authProvider.authUrl);
+
+    // Add the redirect URL
+    url.searchParams.set("redirect_uri", redirectUrl);
+
+    // Store the provider info in localStorage for the callback to use
+    localStorage.setItem(
+      "oauthProvider",
+      JSON.stringify({
+        name: provider,
+        state: authProvider.state,
+        codeVerifier: authProvider.codeVerifier,
+      }),
+    );
+
+    // Redirect to the authorization URL
+    window.location.href = url.toString();
+  }
+
+  /**
+   * Complete OAuth authentication after redirect
+   */
+  async completeOAuthLogin(code: string): Promise<User> {
+    // Get the stored provider info
+    const providerInfo = JSON.parse(
+      localStorage.getItem("oauthProvider") || "{}",
+    );
+
+    if (!providerInfo.name) {
+      throw new Error("No OAuth provider information found.");
+    }
+
+    // Prepare the redirect URL (should be the same as the one used in the authorization request)
+    const redirectUrl = window.location.origin + "/login";
+
+    // Complete the authentication
+    await this.pb
+      .collection("users")
+      .authWithOAuth2(
+        providerInfo.name,
+        code,
+        providerInfo.codeVerifier,
+        redirectUrl,
+      );
+
+    // Clean up localStorage
+    localStorage.removeItem("oauthProvider");
+
+    return this.currentUser as User;
+  }
+
+  /**
    * Logout user
    */
   logout(): void {
@@ -149,34 +234,48 @@ class PocketBaseService {
 
       return existingMovie;
     } catch (error) {
-      // Movie doesn't exist, fetch and create it
-      const tmdbMovie = await tmdbApi.getMovieDetails(tmdbId);
-      const director = tmdbApi.getDirector(tmdbMovie);
+      console.log("Movie doesn't exist, creating it from TMDB:", tmdbId);
 
-      // Create movie in PocketBase
-      const movie = await this.pb.collection("movies").create<Movie>({
-        tmdb_id: tmdbMovie.id,
-        title: tmdbMovie.title,
-        original_title: tmdbMovie.original_title,
-        poster_path: tmdbMovie.poster_path,
-        backdrop_path: tmdbMovie.backdrop_path,
-        release_date: tmdbMovie.release_date,
-        runtime: tmdbMovie.runtime,
-        overview: tmdbMovie.overview,
-        tmdb_rating: tmdbMovie.vote_average,
-        director,
-        genres: tmdbMovie.genres,
-        last_synced: new Date().toISOString(),
-      });
+      try {
+        // Movie doesn't exist, fetch and create it
+        const tmdbMovie = await tmdbApi.getMovieDetails(tmdbId);
+        const director = tmdbApi.getDirector(tmdbMovie);
 
-      // Sync cast members
-      await this.syncCastMembers(
-        movie.id,
-        tmdbMovie.id,
-        tmdbApi.getCast(tmdbMovie),
-      );
+        console.log("Got TMDB movie details:", {
+          id: tmdbMovie.id,
+          title: tmdbMovie.title,
+        });
 
-      return movie;
+        // Create movie in PocketBase
+        const movie = await this.pb.collection("movies").create<Movie>({
+          tmdb_id: tmdbMovie.id,
+          title: tmdbMovie.title,
+          original_title: tmdbMovie.original_title,
+          poster_path: tmdbMovie.poster_path,
+          backdrop_path: tmdbMovie.backdrop_path,
+          release_date: tmdbMovie.release_date,
+          runtime: tmdbMovie.runtime,
+          overview: tmdbMovie.overview,
+          tmdb_rating: tmdbMovie.vote_average,
+          director,
+          genres: tmdbMovie.genres,
+          last_synced: new Date().toISOString(),
+        });
+
+        console.log("Created movie in PocketBase:", movie.id);
+
+        // Sync cast members
+        await this.syncCastMembers(
+          movie.id,
+          tmdbMovie.id,
+          tmdbApi.getCast(tmdbMovie),
+        );
+
+        return movie;
+      } catch (syncError) {
+        console.error("Error syncing movie from TMDB:", syncError);
+        throw new Error(`Failed to sync movie from TMDB: ${syncError.message}`);
+      }
     }
   }
 
@@ -248,18 +347,21 @@ class PocketBaseService {
   /**
    * Get movie by TMDB ID
    */
-  async getMovieByTmdbId(
-    tmdbId: number,
-    expand?: ExpandParams,
-  ): Promise<Movie> {
+  async getMovieByTmdbId(tmdbId: number): Promise<Movie | undefined> {
     try {
       return await this.pb
         .collection("movies")
-        .getFirstListItem<Movie>(`tmdb_id=${tmdbId}`, { expand });
+        .getFirstListItem<Movie>(`tmdb_id=${tmdbId}`);
     } catch (error) {
-      console.error(error);
-      // If movie doesn't exist, sync it from TMDB
-      return this.syncMovieFromTMDB(tmdbId);
+      console.log(error);
+      // Check if PocketBase is properly initialized
+      if (!this.pb || !process.env.NEXT_PUBLIC_POCKETBASE_URL) {
+        console.error("PocketBase not properly initialized:", {
+          pb: !!this.pb,
+          url: process.env.NEXT_PUBLIC_POCKETBASE_URL,
+        });
+        throw new Error("PocketBase connection failed");
+      }
     }
   }
 
@@ -345,13 +447,26 @@ class PocketBaseService {
   }
 
   /**
+   * Get all reviews with pagintion
+   */
+  async getAllMovieReviews(
+    page: number = 1,
+    perPage: number = 20,
+  ): Promise<ListResult<Review>> {
+    return this.pb.collection("reviews").getList(page, perPage, {
+      sort: "-created",
+      expand: "user",
+    });
+  }
+
+  /**
    * Get reviews for a movie
    */
   async getMovieReviews(
     movieId: string,
     page: number = 1,
     perPage: number = 20,
-  ): Promise<Record[]> {
+  ): Promise<ListResult<Movie>> {
     return this.pb.collection("reviews").getList(page, perPage, {
       filter: `movie="${movieId}"`,
       sort: "-created",

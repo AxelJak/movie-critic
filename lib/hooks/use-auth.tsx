@@ -8,6 +8,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   register: (email: string, password: string, name: string) => Promise<User>;
   login: (email: string, password: string) => Promise<User>;
+  loginWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
+  completeOAuthLogin: (code: string) => Promise<User>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<User>;
   updateAvatar: (file: File) => Promise<User>;
@@ -67,6 +69,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithOAuth = async (provider: 'google' | 'apple') => {
+    setIsLoading(true);
+    try {
+      await pbApi.loginWithOAuth(provider);
+      // No need to set user here as this redirects the browser
+    } catch (error) {
+      console.error(`Error during ${provider} OAuth login:`, error);
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  const completeOAuthLogin = async (code: string) => {
+    setIsLoading(true);
+    try {
+      const user = await pbApi.completeOAuthLogin(code);
+      setUser(user);
+      return user;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     pbApi.logout();
     setUser(null);
@@ -102,6 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: pbApi.isAuthenticated,
         register,
         login,
+        loginWithOAuth,
+        completeOAuthLogin,
         logout,
         updateProfile,
         updateAvatar,

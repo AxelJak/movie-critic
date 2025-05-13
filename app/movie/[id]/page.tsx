@@ -7,6 +7,7 @@ import { formatDate, formatRuntime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import ReviewFormWrapper from "@/components/ReviewFormWrapper";
 
 // Define expanded review type with user data
 interface ExpandedReview extends Review {
@@ -29,12 +30,39 @@ interface PageProps {
 // Function to fetch movie data
 async function getMovieData(id: string) {
   try {
+    // Always fetch from TMDB first as it's more reliable
     const movie = await tmdbApi.getMovieDetails(parseInt(id));
     const cast = tmdbApi.getCast(movie);
-    const reviewsResponse = await pbApi.getMovieReviews(id);
-    const reviews = reviewsResponse.items as unknown as ExpandedReview[];
 
-    return { movie, cast, reviews };
+    // Try to get the movie from our database by TMDB ID
+    let pocketbaseMovieId = "";
+    let reviews: ExpandedReview[] = [];
+    
+    try {
+      console.log("Attempting to fetch movie from PocketBase:", id);
+      const existingMovie = await pbApi.getMovieByTmdbId(parseInt(id));
+      if (existingMovie) {
+        pocketbaseMovieId = existingMovie.id;
+      
+        // If we have the movie in our database, fetch reviews
+        if (pocketbaseMovieId) {
+          try {
+            const reviewsResponse =
+              await pbApi.getMovieReviews(pocketbaseMovieId);
+            reviews = reviewsResponse.items as unknown as ExpandedReview[];
+          } catch (reviewError) {
+            console.error("Error fetching reviews:", reviewError);
+            // Continue with empty reviews if there's an error
+          }
+        }
+      }
+    } catch (pbError) {
+      console.error("PocketBase error:", pbError);
+      // Continue with empty PocketBase data - we still have the TMDB data
+      // so the page can render with basic information
+    }
+
+    return { movie, cast, reviews, pocketbaseMovieId };
   } catch (error) {
     console.error("Error fetching movie data:", error);
     return notFound();
@@ -43,7 +71,7 @@ async function getMovieData(id: string) {
 
 export default async function MovieDetailsPage({ params }: PageProps) {
   const { id } = params;
-  const { movie, cast, reviews } = await getMovieData(id);
+  const { movie, cast, reviews, pocketbaseMovieId } = await getMovieData(id);
 
   // Get average site rating
   const siteRating =
@@ -85,9 +113,9 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               className="object-cover"
             />
           </div>
-          <div className="flex flex-col mt-auto text-white">
+          <div className="flex flex-col mt-auto text-gray-700">
             <h1 className="text-3xl md:text-5xl font-bold">{movie.title}</h1>
-            <div className="flex flex-wrap gap-2 mt-2 text-sm md:text-base text-gray-200">
+            <div className="flex flex-wrap gap-2 mt-2 text-sm md:text-base text-gray-500">
               {movie.release_date && (
                 <span>{new Date(movie.release_date).getFullYear()}</span>
               )}
@@ -114,7 +142,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                 <div className="text-3xl font-bold mt-1">
                   {siteRating.toFixed(1)}
                   <span className="text-base font-normal text-muted-foreground">
-                    /5
+                    /10
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">
@@ -127,9 +155,9 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               <div className="flex flex-col items-center">
                 <span className="text-sm font-medium">TMDB Rating</span>
                 <div className="text-3xl font-bold mt-1">
-                  {(movie.tmdb_rating / 2).toFixed(1)}
+                  {movie.vote_average.toFixed(1)}
                   <span className="text-base font-normal text-muted-foreground">
-                    /5
+                    /10
                   </span>
                 </div>
               </div>
@@ -201,9 +229,13 @@ export default async function MovieDetailsPage({ params }: PageProps) {
             <div className="sticky top-4 space-y-4">
               <h2 className="text-2xl font-semibold">Reviews</h2>
 
-              <Button className="w-full" variant="default">
-                Add Your Review
-              </Button>
+              {/* Add review form */}
+              <div className="mb-6">
+                <ReviewFormWrapper
+                  movieId={pocketbaseMovieId}
+                  tmdbId={movie.id}
+                />
+              </div>
 
               {reviews.length > 0 ? (
                 <div className="space-y-4">
@@ -230,7 +262,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                             <div className="flex items-center">
                               <span className="font-bold">{review.rating}</span>
                               <span className="text-xs text-muted-foreground">
-                                /5
+                                /10
                               </span>
                             </div>
                           </div>
