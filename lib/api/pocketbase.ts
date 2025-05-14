@@ -451,10 +451,10 @@ class PocketBaseService {
   async getAllMovieReviews(
     page: number = 1,
     perPage: number = 20,
-  ): Promise<ListResult<Review>> {
-    return this.pb.collection("reviews").getList(page, perPage, {
+  ): Promise<ListResult<Movie>> {
+    return this.pb.collection("movies").getList(page, perPage, {
       sort: "-created",
-      expand: "user",
+      expand: "reviews_via_movie.user",
     });
   }
 

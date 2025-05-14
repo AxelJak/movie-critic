@@ -12,12 +12,17 @@ import { Movie, Review } from "@/lib/api";
 import { tmdbApi } from "@/lib/api/tmdb";
 
 interface MovieCardProps {
-  reviews: Review[];
+  movie: Movie;
 }
 
-export default async function MovieCard({ reviews }: MovieCardProps) {
-  const movie = await tmdbApi.getMovieDetails(parseInt(reviews[0].movie));
-
+export default async function MovieCard({ movie }: MovieCardProps) {
+  const siteRating =
+    movie.expand.reviews_via_movie.length > 0
+      ? movie.expand.reviews_via_movie.reduce(
+          (sum, review) => sum + review.rating,
+          0,
+        ) / movie.expand.reviews_via_movie.length
+      : 0;
   return (
     <Card className="overflow-hidden py-0">
       <div className="flex flex-col sm:flex-row">
@@ -38,25 +43,25 @@ export default async function MovieCard({ reviews }: MovieCardProps) {
             <Tabs defaultValue="overview" className="w-[400px]">
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                {reviews &&
-                  reviews.map((review: Review) => (
+                {movie.expand.reviews_via_movie &&
+                  movie.expand.reviews_via_movie.map((review: Review) => (
                     <TabsTrigger key={review.id} value={`review-${review.id}`}>
-                      {review.user}
+                      {review.expand.user.name} {review.rating}
                     </TabsTrigger>
                   ))}
               </TabsList>
               <TabsContent value="overview">{movie.overview}</TabsContent>
-              {reviews &&
-                reviews.map((review: Review) => (
+              {movie.expand.reviews_via_movie &&
+                movie.expand.reviews_via_movie.map((review: Review) => (
                   <TabsContent key={review.id} value={`review-${review.id}`}>
                     {review.content}
                   </TabsContent>
                 ))}
             </Tabs>
           </CardContent>
-          <CardFooter className="mt-auto">
-            {" "}
-            <b>TMDB rating: {Math.round(movie.vote_average * 10) / 10}</b>
+          <CardFooter className="mt-auto flex justify-around">
+            <b>TMDB rating: {Math.round(movie.tmdb_rating * 10) / 10}</b>
+            <b>Our rating: {Math.round(siteRating * 10) / 10}</b>
           </CardFooter>
         </div>
       </div>
