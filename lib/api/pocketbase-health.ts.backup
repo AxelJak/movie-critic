@@ -16,9 +16,12 @@ export async function checkPocketBaseHealth(): Promise<boolean> {
       return false;
     }
     
-    // Make a simple HEAD request to check if the server is responding
-    const response = await fetch(pocketbaseUrl, {
-      method: 'HEAD',
+    // Use the collections API endpoint which always exists in PocketBase
+    const healthEndpoint = `${pocketbaseUrl}/api/collections`;
+    
+    // Make a simple GET request to check if the server is responding
+    const response = await fetch(healthEndpoint, {
+      method: 'GET',
       headers: {
         'Accept': 'application/json'
       },

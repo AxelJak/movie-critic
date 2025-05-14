@@ -4,13 +4,12 @@ import React, { useState, useEffect, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { pbApi } from "@/lib/api/pocketbase";
-import { checkPocketBaseHealth } from "@/lib/api/pocketbase-health";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 // Form state management
 type FormState = {
@@ -21,7 +20,6 @@ type FormState = {
   isSubmitting: boolean;
   error: string | null;
   success: string | null;
-  pocketBaseAvailable: boolean;
   hasReviewed: boolean;
   userReview: any; // Using any for now, could be typed better
   isLoading: boolean;
@@ -34,8 +32,7 @@ type FormAction =
   | { type: "SUBMIT_SUCCESS"; message: string }
   | { type: "SUBMIT_ERROR"; error: string }
   | { type: "RESET_FORM" }
-  | { type: "SET_LOADING"; isLoading: boolean }
-  | { type: "SET_POCKETBASE_STATUS"; available: boolean };
+  | { type: "SET_LOADING"; isLoading: boolean };
 
 const initialFormState: FormState = {
   title: "",
@@ -45,7 +42,6 @@ const initialFormState: FormState = {
   isSubmitting: false,
   error: null,
   success: null,
-  pocketBaseAvailable: true, // Assume available until proven otherwise
   hasReviewed: false,
   userReview: null,
   isLoading: true,
@@ -84,13 +80,10 @@ function formReducer(state: FormState, action: FormAction): FormState {
     case "RESET_FORM":
       return {
         ...initialFormState,
-        pocketBaseAvailable: state.pocketBaseAvailable,
         isLoading: false,
       };
     case "SET_LOADING":
       return { ...state, isLoading: action.isLoading };
-    case "SET_POCKETBASE_STATUS":
-      return { ...state, pocketBaseAvailable: action.available };
     default:
       return state;
   }
@@ -110,15 +103,6 @@ export default function MovieReviewFormImpl({
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(formReducer, initialFormState);
-
-  // Check if PocketBase is available
-  useEffect(() => {
-    const checkPocketBase = async () => {
-      const isAvailable = await checkPocketBaseHealth();
-      dispatch({ type: "SET_POCKETBASE_STATUS", available: isAvailable });
-    };
-    checkPocketBase();
-  }, []);
 
   // Check if user has already reviewed this movie
   useEffect(() => {
@@ -141,12 +125,8 @@ export default function MovieReviewFormImpl({
       }
     };
 
-    if (state.pocketBaseAvailable) {
-      checkExistingReview();
-    } else {
-      dispatch({ type: "SET_LOADING", isLoading: false });
-    }
-  }, [isAuthenticated, movieId, state.pocketBaseAvailable]);
+    checkExistingReview();
+  }, [isAuthenticated, movieId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,14 +135,6 @@ export default function MovieReviewFormImpl({
       dispatch({ 
         type: "SUBMIT_ERROR", 
         error: "You must be logged in to submit a review" 
-      });
-      return;
-    }
-
-    if (!state.pocketBaseAvailable) {
-      dispatch({
-        type: "SUBMIT_ERROR",
-        error: "Cannot submit review - database connection is unavailable"
       });
       return;
     }
@@ -252,27 +224,6 @@ export default function MovieReviewFormImpl({
         <p className="mb-4">You need to be logged in to write a review.</p>
         <Button variant="outline" onClick={() => window.location.href = "/login"}>
           Go to Login
-        </Button>
-      </Card>
-    );
-  }
-
-  if (!state.pocketBaseAvailable) {
-    return (
-      <Card className="p-4 text-center">
-        <div className="flex items-center justify-center gap-2 text-amber-500 mb-3">
-          <AlertCircle size={18} />
-          <p className="font-medium">Database Connection Issue</p>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Review submissions are temporarily unavailable. Please try again later.
-        </p>
-        <Button 
-          variant="outline" 
-          onClick={() => window.location.reload()}
-          className="w-full"
-        >
-          Retry Connection
         </Button>
       </Card>
     );

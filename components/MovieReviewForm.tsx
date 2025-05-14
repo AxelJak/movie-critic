@@ -1,23 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 // Dynamically import the actual review form component with no SSR
 // This is done in a client component, so it's allowed
-const DynamicReviewForm = dynamic(
-  () => import('./MovieReviewFormImpl'),
-  { 
-    ssr: false,
-    loading: () => (
-      <Card className="p-4 text-center">
-        <p className="text-muted-foreground">Loading review form...</p>
-      </Card>
-    )
-  }
-);
+const DynamicReviewForm = dynamic(() => import("./MovieReviewFormImpl"), {
+  ssr: false,
+  loading: () => (
+    <Card className="p-4 text-center">
+      <p className="text-muted-foreground">Loading review form...</p>
+    </Card>
+  ),
+});
 
 interface MovieReviewFormProps {
   movieId: string;
@@ -32,7 +28,7 @@ interface MovieReviewFormProps {
 export default function MovieReviewForm({
   movieId,
   tmdbId,
-  onReviewSubmitted
+  onReviewSubmitted,
 }: MovieReviewFormProps) {
   const [isClient, setIsClient] = useState(false);
 
@@ -50,7 +46,7 @@ export default function MovieReviewForm({
   }
 
   return (
-    <DynamicReviewForm 
+    <DynamicReviewForm
       movieId={movieId}
       tmdbId={tmdbId}
       onReviewSubmitted={onReviewSubmitted}

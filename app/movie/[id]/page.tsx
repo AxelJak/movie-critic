@@ -37,13 +37,13 @@ async function getMovieData(id: string) {
     // Try to get the movie from our database by TMDB ID
     let pocketbaseMovieId = "";
     let reviews: ExpandedReview[] = [];
-    
+
     try {
       console.log("Attempting to fetch movie from PocketBase:", id);
       const existingMovie = await pbApi.getMovieByTmdbId(parseInt(id));
       if (existingMovie) {
         pocketbaseMovieId = existingMovie.id;
-      
+
         // If we have the movie in our database, fetch reviews
         if (pocketbaseMovieId) {
           try {
@@ -245,7 +245,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                           <Image
                             src={
-                              review.expand.user.avatar ||
+                              review.expand.user?.avatar ||
                               "/placeholder-avatar.jpg"
                             }
                             alt={review.expand.user.name}
