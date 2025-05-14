@@ -50,6 +50,7 @@ async function getMovieData(id: string) {
             const reviewsResponse =
               await pbApi.getMovieReviews(pocketbaseMovieId);
             reviews = reviewsResponse.items as unknown as ExpandedReview[];
+            console.log(reviews);
           } catch (reviewError) {
             console.error("Error fetching reviews:", reviewError);
             // Continue with empty reviews if there's an error

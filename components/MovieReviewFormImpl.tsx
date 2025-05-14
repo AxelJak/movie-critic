@@ -132,9 +132,9 @@ export default function MovieReviewFormImpl({
     e.preventDefault();
 
     if (!isAuthenticated) {
-      dispatch({ 
-        type: "SUBMIT_ERROR", 
-        error: "You must be logged in to submit a review" 
+      dispatch({
+        type: "SUBMIT_ERROR",
+        error: "You must be logged in to submit a review",
       });
       return;
     }
@@ -142,12 +142,13 @@ export default function MovieReviewFormImpl({
     if (state.rating < 1 || state.rating > 10) {
       dispatch({
         type: "SUBMIT_ERROR",
-        error: "Rating must be between 1 and 10"
+        error: "Rating must be between 1 and 10",
       });
       return;
     }
 
     dispatch({ type: "SUBMIT_START" });
+    console.log(state);
 
     try {
       // First check if the movie exists in our database, if not sync it
@@ -167,16 +168,17 @@ export default function MovieReviewFormImpl({
 
       if (state.hasReviewed && state.userReview) {
         // Update existing review
+        console.log(state);
         await pbApi.updateReview(state.userReview.id, {
           rating: state.rating,
           title: state.title,
           content: state.content,
-          contains_spoilers: state.containsSpoilers
+          contains_spoilers: state.containsSpoilers,
         });
-        
-        dispatch({ 
-          type: "SUBMIT_SUCCESS", 
-          message: "Your review has been updated!" 
+
+        dispatch({
+          type: "SUBMIT_SUCCESS",
+          message: "Your review has been updated!",
         });
       } else {
         // Create new review
@@ -185,12 +187,12 @@ export default function MovieReviewFormImpl({
           state.rating,
           state.title,
           state.content,
-          state.containsSpoilers
+          state.containsSpoilers,
         );
-        
-        dispatch({ 
-          type: "SUBMIT_SUCCESS", 
-          message: "Your review has been submitted!" 
+
+        dispatch({
+          type: "SUBMIT_SUCCESS",
+          message: "Your review has been submitted!",
         });
       }
 
@@ -203,9 +205,9 @@ export default function MovieReviewFormImpl({
       }
     } catch (error) {
       console.error("Error submitting review:", error);
-      dispatch({ 
-        type: "SUBMIT_ERROR", 
-        error: "Failed to submit review. Please try again." 
+      dispatch({
+        type: "SUBMIT_ERROR",
+        error: "Failed to submit review. Please try again.",
       });
     }
   };
@@ -222,7 +224,10 @@ export default function MovieReviewFormImpl({
     return (
       <Card className="p-4 text-center">
         <p className="mb-4">You need to be logged in to write a review.</p>
-        <Button variant="outline" onClick={() => window.location.href = "/login"}>
+        <Button
+          variant="outline"
+          onClick={() => (window.location.href = "/login")}
+        >
           Go to Login
         </Button>
       </Card>
@@ -252,11 +257,13 @@ export default function MovieReviewFormImpl({
                 variant={state.rating === value ? "default" : "outline"}
                 size="sm"
                 className="w-8 h-8 p-0"
-                onClick={() => dispatch({ 
-                  type: "SET_FIELD", 
-                  field: "rating", 
-                  value 
-                })}
+                onClick={() =>
+                  dispatch({
+                    type: "SET_FIELD",
+                    field: "rating",
+                    value,
+                  })
+                }
               >
                 {value}
               </Button>
@@ -270,11 +277,13 @@ export default function MovieReviewFormImpl({
             <Input
               id="title"
               value={state.title}
-              onChange={(e) => dispatch({ 
-                type: "SET_FIELD", 
-                field: "title", 
-                value: e.target.value 
-              })}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  field: "title",
+                  value: e.target.value,
+                })
+              }
               placeholder="Give your review a title"
               maxLength={100}
             />
@@ -293,11 +302,13 @@ export default function MovieReviewFormImpl({
                 <textarea
                   id="content"
                   value={state.content}
-                  onChange={(e) => dispatch({ 
-                    type: "SET_FIELD", 
-                    field: "content", 
-                    value: e.target.value 
-                  })}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_FIELD",
+                      field: "content",
+                      value: e.target.value,
+                    })
+                  }
                   className="w-full h-32 p-2 border rounded-md border-input bg-background"
                   placeholder="Share your thoughts about the movie..."
                 ></textarea>
@@ -309,7 +320,9 @@ export default function MovieReviewFormImpl({
                       {state.content}
                     </div>
                   ) : (
-                    <span className="text-muted-foreground">Nothing to preview</span>
+                    <span className="text-muted-foreground">
+                      Nothing to preview
+                    </span>
                   )}
                 </div>
               </TabsContent>
@@ -321,11 +334,13 @@ export default function MovieReviewFormImpl({
               type="checkbox"
               id="spoiler"
               checked={state.containsSpoilers}
-              onChange={(e) => dispatch({ 
-                type: "SET_FIELD", 
-                field: "containsSpoilers", 
-                value: e.target.checked 
-              })}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  field: "containsSpoilers",
+                  value: e.target.checked,
+                })
+              }
               className="mr-2 h-4 w-4"
             />
             <Label htmlFor="spoiler" className="text-sm">
@@ -346,17 +361,16 @@ export default function MovieReviewFormImpl({
             </div>
           )}
 
-          <Button 
-            type="submit" 
-            disabled={state.isSubmitting} 
+          <Button
+            type="submit"
+            disabled={state.isSubmitting}
             className="w-full"
           >
-            {state.isSubmitting 
-              ? "Submitting..." 
-              : state.hasReviewed 
-                ? "Update Review" 
-                : "Submit Review"
-            }
+            {state.isSubmitting
+              ? "Submitting..."
+              : state.hasReviewed
+                ? "Update Review"
+                : "Submit Review"}
           </Button>
         </div>
       </form>

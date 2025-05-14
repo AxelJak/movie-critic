@@ -416,7 +416,6 @@ class PocketBaseService {
     containsSpoilers: boolean = false,
   ): Promise<Review> {
     if (!this.isAuthenticated) throw new Error("User not authenticated");
-
     return this.pb.collection("reviews").create<Review>({
       user: this.currentUser?.id,
       movie: movieId,
@@ -467,10 +466,10 @@ class PocketBaseService {
     page: number = 1,
     perPage: number = 20,
   ): Promise<ListResult<Movie>> {
-    return this.pb.collection("reviews").getList(page, perPage, {
+    return await this.pb.collection("reviews").getList(page, perPage, {
+      expand: "user",
       filter: `movie="${movieId}"`,
       sort: "-created",
-      expand: "user",
     });
   }
 
