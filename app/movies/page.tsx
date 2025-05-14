@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { Card, CardTitle, CardContent, CardAction } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardTitle, CardContent } from "@/components/ui/card";
 import SearchBar from "@/components/SearchBar";
 import { TMDBMovie } from "@/lib/api/types";
 

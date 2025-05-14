@@ -1,5 +1,4 @@
 import {
-  TMDBMovie,
   TMDBMovieDetails,
   TMDBSearchResult,
   TMDBCastMember,

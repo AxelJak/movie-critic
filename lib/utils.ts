@@ -42,7 +42,7 @@ export function formatRuntime(minutes: number): string {
  * @param ms Milliseconds to delay
  * @returns Debounced function
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T, 
   ms: number
 ): (...args: Parameters<T>) => void {

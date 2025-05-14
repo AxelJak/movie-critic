@@ -6,7 +6,6 @@ import {
   Review,
   Watchlist,
   WatchlistMovie,
-  TMDBMovie,
   TMDBCastMember,
 } from "./types";
 import { tmdbApi } from "./tmdb";
@@ -233,6 +232,7 @@ class PocketBaseService {
       }
 
       return existingMovie;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       console.log("Movie doesn't exist, creating it from TMDB:", tmdbId);
 
@@ -272,9 +272,9 @@ class PocketBaseService {
         );
 
         return movie;
-      } catch (syncError) {
-        console.error("Error syncing movie from TMDB:", syncError);
-        throw new Error(`Failed to sync movie from TMDB: ${syncError.message}`);
+      } catch (error) {
+        console.error("Error syncing movie from TMDB:", error);
+        throw new Error(`Failed to sync movie from TMDB: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
@@ -352,8 +352,9 @@ class PocketBaseService {
       return await this.pb
         .collection("movies")
         .getFirstListItem<Movie>(`tmdb_id=${tmdbId}`);
-    } catch (error) {
-      console.log(error);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_e) {
+      console.log("Movie not found by TMDB ID");
       // Check if PocketBase is properly initialized
       if (!this.pb || !process.env.NEXT_PUBLIC_POCKETBASE_URL) {
         console.error("PocketBase not properly initialized:", {
@@ -485,7 +486,8 @@ class PocketBaseService {
         .getFirstListItem<Review>(
           `movie="${movieId}" && user="${this.currentUser?.id}"`,
         );
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_e) {
       return null;
     }
   }
@@ -639,7 +641,8 @@ class PocketBaseService {
         .getFirstListItem<WatchlistMovie>(
           `movie="${movieId}" && watchlist="${watchlistId}"`,
         );
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_e) {
       return null;
     }
   }

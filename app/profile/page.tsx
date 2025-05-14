@@ -13,7 +13,7 @@ import { ListResult } from "pocketbase";
 import ProfileEditor from "@/components/ProfileEditor";
 
 export default function Profile() {
-  const { user, isAuthenticated, isLoading, updateProfile, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [reviews, setReviews] = useState<ListResult<Review> | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("reviews");
@@ -195,7 +195,7 @@ export default function Profile() {
                   ) : reviews?.items.length === 0 ? (
                     <div className="text-center py-6">
                       <p className="mb-4">
-                        You haven't written any reviews yet.
+                        You haven&apos;t written any reviews yet.
                       </p>
                       <Button asChild>
                         <Link href="/movies">Browse Movies</Link>

@@ -49,6 +49,7 @@ export function LoginForm({
     };
 
     fetchLatestMovie();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const handleOAuthCallback = async (code: string) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useReducer } from "react";
+import React, { useEffect, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { pbApi } from "@/lib/api/pocketbase";
@@ -21,13 +21,13 @@ type FormState = {
   error: string | null;
   success: string | null;
   hasReviewed: boolean;
-  userReview: any; // Using any for now, could be typed better
+  userReview: Record<string, unknown>; // More specific than any
   isLoading: boolean;
 };
 
 type FormAction =
-  | { type: "SET_FIELD"; field: keyof FormState; value: any }
-  | { type: "SET_REVIEW"; review: any }
+  | { type: "SET_FIELD"; field: keyof FormState; value: unknown }
+  | { type: "SET_REVIEW"; review: Record<string, unknown> }
   | { type: "SUBMIT_START" }
   | { type: "SUBMIT_SUCCESS"; message: string }
   | { type: "SUBMIT_ERROR"; error: string }
@@ -101,7 +101,7 @@ export default function MovieReviewFormImpl({
   onReviewSubmitted,
 }: MovieReviewFormImplProps) {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(formReducer, initialFormState);
 
   // Check if user has already reviewed this movie
@@ -244,7 +244,7 @@ export default function MovieReviewFormImpl({
             </Label>
             {state.hasReviewed && (
               <span className="text-sm text-muted-foreground">
-                You've already reviewed this movie
+                You&apos;ve already reviewed this movie
               </span>
             )}
           </div>
