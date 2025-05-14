@@ -491,6 +491,25 @@ class PocketBaseService {
   }
 
   /**
+   * Get all reviews by a specific user
+   */
+  async getUserReviews(
+    userId: string = this.currentUser?.id,
+    page: number = 1,
+    perPage: number = 20
+  ): Promise<ListResult<Review>> {
+    if (!userId) {
+      throw new Error("User ID is required to fetch reviews");
+    }
+
+    return this.pb.collection("reviews").getList<Review>(page, perPage, {
+      expand: "movie",
+      filter: `user="${userId}"`,
+      sort: "-created",
+    });
+  }
+
+  /**
    * Get average rating for a movie
    */
   async getMovieAverageRating(movieId: string): Promise<number> {

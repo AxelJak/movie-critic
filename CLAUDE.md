@@ -22,3 +22,7 @@
 ## API Integration
 - TMDB API base URL: located in `.env`
 - Environment variables should be set in `.env`
+
+## Other instructions
+- Always make an inital plan and get approval from user before starting to edit
+- Important, do not guess functionallity of the app if unsure check
