@@ -1,6 +1,5 @@
 import { pbApi } from "@/lib/api/pocketbase";
 import MovieCard from "@/components/MovieCard";
-import { Movie } from "@/lib/api";
 
 export default async function Home() {
   const result = await pbApi.getAllMovieReviews();
@@ -8,7 +7,7 @@ export default async function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        {movies.map((movie: Movie) => (
+        {movies.map((movie) => (
           <MovieCard key={movie.id} movie={movie} />
         ))}
       </main>

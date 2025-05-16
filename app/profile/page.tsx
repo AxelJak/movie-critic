@@ -8,13 +8,15 @@ import { pbApi } from "@/lib/api/pocketbase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Review, Movie } from "@/lib/api/types";
 import { ListResult } from "pocketbase";
 import ProfileEditor from "@/components/ProfileEditor";
+import { MoviesRecord, ReviewsResponse } from "@/lib/api/pocketbase-types";
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const [reviews, setReviews] = useState<ListResult<Review> | null>(null);
+  const [reviews, setReviews] = useState<ListResult<
+    ReviewsResponse<MoviesRecord>
+  > | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("reviews");
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -205,7 +207,7 @@ export default function Profile() {
                     <div className="space-y-4">
                       {reviews?.items.map((review) => {
                         // Check if movie data is available through expand
-                        const movieData = review.expand?.movie as Movie;
+                        const movieData = review.expand as MoviesRecord;
 
                         return (
                           <Card

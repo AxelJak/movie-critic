@@ -8,11 +8,23 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import Image from "next/image";
-import { Movie, Review } from "@/lib/api";
+import {
+  MoviesResponse,
+  ReviewsResponse,
+  MoviesRecord,
+  UsersResponse,
+} from "@/lib/api/pocketbase-types";
 import { tmdbApi } from "@/lib/api/tmdb";
 
+interface Expand {
+  reviews_via_movie: ReviewsResponse<UserExpand>[];
+}
+interface UserExpand {
+  user: UsersResponse;
+}
+
 interface MovieCardProps {
-  movie: Movie;
+  movie: MoviesResponse<MoviesRecord, Expand>;
 }
 
 export default async function MovieCard({ movie }: MovieCardProps) {
@@ -44,7 +56,7 @@ export default async function MovieCard({ movie }: MovieCardProps) {
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 {movie.expand.reviews_via_movie &&
-                  movie.expand.reviews_via_movie.map((review: Review) => (
+                  movie.expand.reviews_via_movie.map((review) => (
                     <TabsTrigger key={review.id} value={`review-${review.id}`}>
                       {review.expand.user.name} {review.rating}
                     </TabsTrigger>
@@ -52,7 +64,7 @@ export default async function MovieCard({ movie }: MovieCardProps) {
               </TabsList>
               <TabsContent value="overview">{movie.overview}</TabsContent>
               {movie.expand.reviews_via_movie &&
-                movie.expand.reviews_via_movie.map((review: Review) => (
+                movie.expand.reviews_via_movie.map((review) => (
                   <TabsContent key={review.id} value={`review-${review.id}`}>
                     {review.content}
                   </TabsContent>

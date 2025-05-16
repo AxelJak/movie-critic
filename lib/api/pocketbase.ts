@@ -1,4 +1,4 @@
-import PocketBase, { Record, ListResult } from "pocketbase";
+import PocketBase, { ListResult } from "pocketbase";
 import {
   User,
   Movie,
@@ -9,11 +9,24 @@ import {
   TMDBCastMember,
 } from "./types";
 import { tmdbApi } from "./tmdb";
+import {
+  MoviesRecord,
+  MoviesResponse,
+  ReviewsResponse,
+  UsersResponse,
+} from "./pocketbase-types";
 
 // Type for expand params
 type ExpandParams = {
   [key: string]: boolean | string[];
 };
+
+interface Expand {
+  reviews_via_movie: ReviewsResponse<UserExpand>[];
+}
+interface UserExpand {
+  user: UsersResponse;
+}
 
 class PocketBaseService {
   private pb: PocketBase;
@@ -76,7 +89,7 @@ class PocketBaseService {
    */
   get currentUser(): User | null {
     return this.isAuthenticated
-      ? (this.pb.authStore.model as unknown as User)
+      ? (this.pb.authStore.record as unknown as User)
       : null;
   }
 
@@ -113,7 +126,7 @@ class PocketBaseService {
     const authMethods = await this.pb.collection("users").listAuthMethods();
 
     // Find the auth method for the requested provider
-    const authProvider = authMethods.authProviders.find(
+    const authProvider = authMethods.oauth2.providers.find(
       (p) => p.name === provider,
     );
 
@@ -125,7 +138,7 @@ class PocketBaseService {
     const redirectUrl = window.location.origin + "/login";
 
     // Redirect to the provider's authorization page
-    const url = new URL(authProvider.authUrl);
+    const url = new URL(authProvider.authURL);
 
     // Add the redirect URL
     url.searchParams.set("redirect_uri", redirectUrl);
@@ -163,7 +176,7 @@ class PocketBaseService {
     // Complete the authentication
     await this.pb
       .collection("users")
-      .authWithOAuth2(
+      .authWithOAuth2Code(
         providerInfo.name,
         code,
         providerInfo.codeVerifier,
@@ -232,7 +245,7 @@ class PocketBaseService {
       }
 
       return existingMovie;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       console.log("Movie doesn't exist, creating it from TMDB:", tmdbId);
 
@@ -274,7 +287,9 @@ class PocketBaseService {
         return movie;
       } catch (error) {
         console.error("Error syncing movie from TMDB:", error);
-        throw new Error(`Failed to sync movie from TMDB: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to sync movie from TMDB: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   }
@@ -352,7 +367,7 @@ class PocketBaseService {
       return await this.pb
         .collection("movies")
         .getFirstListItem<Movie>(`tmdb_id=${tmdbId}`);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_e) {
       console.log("Movie not found by TMDB ID");
       // Check if PocketBase is properly initialized
@@ -452,11 +467,13 @@ class PocketBaseService {
   async getAllMovieReviews(
     page: number = 1,
     perPage: number = 20,
-  ): Promise<ListResult<Movie>> {
-    return this.pb.collection("movies").getList(page, perPage, {
-      sort: "-created",
-      expand: "reviews_via_movie.user",
-    });
+  ): Promise<ListResult<MoviesResponse<MoviesRecord, Expand>>> {
+    return this.pb
+      .collection("movies")
+      .getList<MoviesResponse<MoviesRecord, Expand>>(page, perPage, {
+        sort: "-created",
+        expand: "reviews_via_movie.user",
+      });
   }
 
   /**
@@ -486,7 +503,7 @@ class PocketBaseService {
         .getFirstListItem<Review>(
           `movie="${movieId}" && user="${this.currentUser?.id}"`,
         );
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_e) {
       return null;
     }
@@ -496,19 +513,21 @@ class PocketBaseService {
    * Get all reviews by a specific user
    */
   async getUserReviews(
-    userId: string = this.currentUser?.id,
+    userId: string | undefined = this.currentUser?.id,
     page: number = 1,
-    perPage: number = 20
-  ): Promise<ListResult<Review>> {
+    perPage: number = 20,
+  ): Promise<ListResult<ReviewsResponse<MoviesRecord>>> {
     if (!userId) {
       throw new Error("User ID is required to fetch reviews");
     }
 
-    return this.pb.collection("reviews").getList<Review>(page, perPage, {
-      expand: "movie",
-      filter: `user="${userId}"`,
-      sort: "-created",
-    });
+    return this.pb
+      .collection("reviews")
+      .getList<ReviewsResponse<MoviesRecord>>(page, perPage, {
+        expand: "movie",
+        filter: `user="${userId}"`,
+        sort: "-created",
+      });
   }
 
   /**
@@ -641,7 +660,7 @@ class PocketBaseService {
         .getFirstListItem<WatchlistMovie>(
           `movie="${movieId}" && watchlist="${watchlistId}"`,
         );
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_e) {
       return null;
     }

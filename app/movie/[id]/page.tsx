@@ -21,11 +21,9 @@ interface ExpandedReview extends Review {
 }
 
 // Define the props for the page
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
 
 // Function to fetch movie data
 async function getMovieData(id: string) {
@@ -71,7 +69,7 @@ async function getMovieData(id: string) {
 }
 
 export default async function MovieDetailsPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
   const { movie, cast, reviews, pocketbaseMovieId } = await getMovieData(id);
 
   // Get average site rating
@@ -170,14 +168,6 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               <div className="space-y-4">
                 <p className="text-muted-foreground">{movie.overview}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {movie.director && (
-                    <div>
-                      <span className="font-medium">Director: </span>
-                      <span className="text-muted-foreground">
-                        {movie.director}
-                      </span>
-                    </div>
-                  )}
                   {movie.release_date && (
                     <div>
                       <span className="font-medium">Release Date: </span>

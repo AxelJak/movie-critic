@@ -21,7 +21,7 @@ type FormState = {
   error: string | null;
   success: string | null;
   hasReviewed: boolean;
-  userReview: Record<string, unknown>; // More specific than any
+  userReview: Record<string, unknown> | null; // More specific than any
   isLoading: boolean;
 };
 
@@ -157,7 +157,7 @@ export default function MovieReviewFormImpl({
       if (!pocketbaseMovieId) {
         try {
           const movie = await pbApi.getMovieByTmdbId(tmdbId);
-          pocketbaseMovieId = movie.id;
+          pocketbaseMovieId = movie?.id || "";
         } catch (error) {
           console.log("Movie not found, syncing from TMDB:", error);
           // If movie doesn't exist, sync it from TMDB
