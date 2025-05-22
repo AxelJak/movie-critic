@@ -54,8 +54,8 @@ export default function SearchBar() {
 
   // Debounce search to avoid too many API calls
   const debouncedSearch = useRef(
-    debounce((searchQuery: string) => {
-      searchMovies(searchQuery);
+    debounce((searchQuery) => {
+      searchMovies(searchQuery as string);
     }, 300),
   ).current;
 

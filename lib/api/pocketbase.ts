@@ -10,16 +10,14 @@ import {
 } from "./types";
 import { tmdbApi } from "./tmdb";
 import {
+  Collections,
+  MovieGenresRecord,
   MoviesRecord,
   MoviesResponse,
   ReviewsResponse,
   UsersResponse,
+  WatchlistMoviesResponse,
 } from "./pocketbase-types";
-
-// Type for expand params
-type ExpandParams = {
-  [key: string]: boolean | string[];
-};
 
 interface Expand {
   reviews_via_movie: ReviewsResponse<UserExpand>[];
@@ -203,7 +201,9 @@ class PocketBaseService {
     if (!this.isAuthenticated) throw new Error("User not authenticated");
 
     const userId = this.currentUser?.id;
-    const user = await this.pb.collection("users").update<User>(userId!, data);
+    const user = await this.pb
+      .collection(Collections.Users)
+      .update<User>(userId!, data);
 
     return user;
   }
@@ -228,12 +228,12 @@ class PocketBaseService {
   /**
    * Sync movie from TMDB to our database
    */
-  async syncMovieFromTMDB(tmdbId: number): Promise<Movie> {
+  async syncMovieFromTMDB(tmdbId: number): Promise<MoviesResponse> {
     // First, check if movie already exists
     try {
       const existingMovie = await this.pb
-        .collection("movies")
-        .getFirstListItem<Movie>(`tmdb_id=${tmdbId}`);
+        .collection(Collections.Movies)
+        .getFirstListItem<MoviesResponse>(`tmdb_id=${tmdbId}`);
 
       // If it exists but was last synced more than 7 days ago, update it
       const lastSynced = new Date(existingMovie.last_synced);
@@ -260,20 +260,22 @@ class PocketBaseService {
         });
 
         // Create movie in PocketBase
-        const movie = await this.pb.collection("movies").create<Movie>({
-          tmdb_id: tmdbMovie.id,
-          title: tmdbMovie.title,
-          original_title: tmdbMovie.original_title,
-          poster_path: tmdbMovie.poster_path,
-          backdrop_path: tmdbMovie.backdrop_path,
-          release_date: tmdbMovie.release_date,
-          runtime: tmdbMovie.runtime,
-          overview: tmdbMovie.overview,
-          tmdb_rating: tmdbMovie.vote_average,
-          director,
-          genres: tmdbMovie.genres,
-          last_synced: new Date().toISOString(),
-        });
+        const movie = await this.pb
+          .collection(Collections.Movies)
+          .create<MoviesResponse>({
+            tmdb_id: tmdbMovie.id,
+            title: tmdbMovie.title,
+            original_title: tmdbMovie.original_title,
+            poster_path: tmdbMovie.poster_path,
+            backdrop_path: tmdbMovie.backdrop_path,
+            release_date: tmdbMovie.release_date,
+            runtime: tmdbMovie.runtime,
+            overview: tmdbMovie.overview,
+            tmdb_rating: tmdbMovie.vote_average,
+            director,
+            genres: tmdbMovie.genres,
+            last_synced: new Date().toISOString(),
+          });
 
         console.log("Created movie in PocketBase:", movie.id);
 
@@ -300,27 +302,29 @@ class PocketBaseService {
   private async updateMovieFromTMDB(
     tmdbId: number,
     movieId: string,
-  ): Promise<Movie> {
+  ): Promise<MoviesResponse> {
+    // Fetch movie details from TMDB
     const tmdbMovie = await tmdbApi.getMovieDetails(tmdbId);
     const director = tmdbApi.getDirector(tmdbMovie);
 
     // Update movie in PocketBase
-    const movie = await this.pb.collection("movies").update<Movie>(movieId, {
-      title: tmdbMovie.title,
-      original_title: tmdbMovie.original_title,
-      poster_path: tmdbMovie.poster_path,
-      backdrop_path: tmdbMovie.backdrop_path,
-      release_date: tmdbMovie.release_date,
-      runtime: tmdbMovie.runtime,
-      overview: tmdbMovie.overview,
-      tmdb_rating: tmdbMovie.vote_average,
-      director,
-      genres: tmdbMovie.genres,
-      last_synced: new Date().toISOString(),
-    });
+    const movie = await this.pb
+      .collection("movies")
+      .update<MoviesResponse>(movieId, {
+        title: tmdbMovie.title,
+        original_title: tmdbMovie.original_title,
+        poster_path: tmdbMovie.poster_path,
+        backdrop_path: tmdbMovie.backdrop_path,
+        release_date: tmdbMovie.release_date,
+        runtime: tmdbMovie.runtime,
+        overview: tmdbMovie.overview,
+        tmdb_rating: tmdbMovie.vote_average,
+        director,
+        genres: tmdbMovie.genres,
+        last_synced: new Date().toISOString(),
+      });
 
     // Sync cast members (delete old ones and create new ones)
-    await this.pb.collection("cast_members").deleteMany(`movie="${movieId}"`);
     await this.syncCastMembers(
       movie.id,
       tmdbMovie.id,
@@ -338,8 +342,26 @@ class PocketBaseService {
     tmdbId: number,
     cast: TMDBCastMember[],
   ): Promise<void> {
-    const promises = cast.map((member) => {
-      return this.pb.collection("cast_members").create<CastMember>({
+    // First, get all existing cast members for this movie
+    const existingCastMembers = await this.pb
+      .collection("cast_members")
+      .getFullList({
+        filter: `movie="${movieId}"`,
+      });
+
+    // Delete existing cast members
+    if (existingCastMembers.length > 0) {
+      // Unfortunately, PocketBase doesn't support deleteMany directly with a filter
+      // So we need to delete each cast member individually
+      const deletePromises = existingCastMembers.map((member) =>
+        this.pb.collection("cast_members").delete(member.id),
+      );
+      await Promise.all(deletePromises);
+    }
+
+    // Create new cast members
+    const createPromises = cast.map((member) => {
+      return this.pb.collection("cast_members").create({
         movie: movieId,
         tmdb_id: member.id,
         name: member.name,
@@ -349,14 +371,16 @@ class PocketBaseService {
       });
     });
 
-    await Promise.all(promises);
+    await Promise.all(createPromises);
   }
 
   /**
    * Get movie by ID with optional expanded relations
    */
-  async getMovie(id: string, expand?: ExpandParams): Promise<Movie> {
-    return this.pb.collection("movies").getOne<Movie>(id, { expand });
+  async getMovie(id: string): Promise<MoviesResponse<MovieGenresRecord[]>> {
+    return this.pb
+      .collection("movies")
+      .getOne<MoviesResponse<MovieGenresRecord[]>>(id);
   }
 
   /**
@@ -494,13 +518,15 @@ class PocketBaseService {
   /**
    * Get user's review for a movie
    */
-  async getUserReviewForMovie(movieId: string): Promise<Review | null> {
+  async getUserReviewForMovie(
+    movieId: string,
+  ): Promise<ReviewsResponse | null> {
     if (!this.isAuthenticated) return null;
 
     try {
       return await this.pb
         .collection("reviews")
-        .getFirstListItem<Review>(
+        .getFirstListItem<ReviewsResponse>(
           `movie="${movieId}" && user="${this.currentUser?.id}"`,
         );
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -637,12 +663,14 @@ class PocketBaseService {
     watchlistId: string,
     page: number = 1,
     perPage: number = 20,
-  ): Promise<Record[]> {
-    return this.pb.collection("watchlist_movies").getList(page, perPage, {
-      filter: `watchlist="${watchlistId}"`,
-      sort: "-created",
-      expand: "movie",
-    });
+  ): Promise<ListResult<WatchlistMoviesResponse<MoviesRecord>>> {
+    return this.pb
+      .collection(Collections.WatchlistMovies)
+      .getList<WatchlistMoviesResponse<MoviesRecord>>(page, perPage, {
+        filter: `watchlist="${watchlistId}"`,
+        sort: "-created",
+        expand: "movie",
+      });
   }
 
   /**

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2 } from "lucide-react";
+import { ReviewsResponse } from "@/lib/api/pocketbase-types";
 
 // Form state management
 type FormState = {
@@ -21,13 +22,13 @@ type FormState = {
   error: string | null;
   success: string | null;
   hasReviewed: boolean;
-  userReview: Record<string, unknown> | null; // More specific than any
+  userReview: ReviewsResponse | null; // More specific than any
   isLoading: boolean;
 };
 
 type FormAction =
   | { type: "SET_FIELD"; field: keyof FormState; value: unknown }
-  | { type: "SET_REVIEW"; review: Record<string, unknown> }
+  | { type: "SET_REVIEW"; review: ReviewsResponse }
   | { type: "SUBMIT_START" }
   | { type: "SUBMIT_SUCCESS"; message: string }
   | { type: "SUBMIT_ERROR"; error: string }

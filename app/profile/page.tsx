@@ -65,7 +65,7 @@ export default function Profile() {
 
         // Count genres from all reviewed movies
         for (const movie of movies) {
-          for (const genre of movie.genres) {
+          for (const genre of movie.genres || []) {
             const currentCount = genreCounts.get(genre.name) || 0;
             genreCounts.set(genre.name, currentCount + 1);
           }
