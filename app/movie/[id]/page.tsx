@@ -37,7 +37,6 @@ async function getMovieData(id: string) {
     let reviews: ExpandedReview[] = [];
 
     try {
-      console.log("Attempting to fetch movie from PocketBase:", id);
       const existingMovie = await pbApi.getMovieByTmdbId(parseInt(id));
       if (existingMovie) {
         pocketbaseMovieId = existingMovie.id;
@@ -48,7 +47,6 @@ async function getMovieData(id: string) {
             const reviewsResponse =
               await pbApi.getMovieReviews(pocketbaseMovieId);
             reviews = reviewsResponse.items as unknown as ExpandedReview[];
-            console.log(reviews);
           } catch (reviewError) {
             console.error("Error fetching reviews:", reviewError);
             // Continue with empty reviews if there's an error
@@ -100,8 +98,8 @@ export default async function MovieDetailsPage({ params }: PageProps) {
           <div className="absolute inset-0 bg-gray-900" />
         )}
 
-        <div className="container relative z-10 flex flex-col md:flex-row items-end gap-6 h-full pb-8">
-          <div className="flex-shrink-0 w-32 md:w-48 aspect-[2/3] relative mt-auto drop-shadow-xl rounded-md overflow-hidden">
+        <div className="container relative z-10 flex flex-col sm:flex-row items-center gap-6 h-full pb-8">
+          <div className="flex-shrink-0 md:w-48 aspect-[2/3] relative mt-auto drop-shadow-xl rounded-md overflow-hidden">
             <Image
               src={
                 tmdbApi.getImageUrl(movie.poster_path, "w500") ||
@@ -135,7 +133,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
           {/* Left Column: Details and Cast */}
           <div className="lg:col-span-2 space-y-8">
             {/* Ratings Section */}
-            <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-card rounded-lg shadow">
+            <div className="flex flex-shrink-0 flex-row justify-center md:justify-start gap-4 p-4 bg-card rounded-lg shadow">
               <div className="flex flex-col items-center">
                 <span className="text-sm font-medium">Our Rating</span>
                 <div className="text-3xl font-bold mt-1">
