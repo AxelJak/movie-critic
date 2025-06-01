@@ -8,6 +8,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   MoviesResponse,
   ReviewsResponse,
@@ -39,13 +40,15 @@ export default async function MovieCard({ movie }: MovieCardProps) {
     <Card className="overflow-hidden py-0">
       <div className="flex flex-col sm:flex-row">
         <div className="relative sm:h-auto flex-shrink-0">
-          <Image
-            src={tmdbApi.getImageUrl(movie.poster_path, "w200") ?? ""}
-            alt="movie_poster"
-            height={250}
-            width={125}
-            className="object-cover"
-          />
+          <Link href={`/movie/${movie.tmdb_id}`} className="cursor-pointer">
+            <Image
+              src={tmdbApi.getImageUrl(movie.poster_path, "w200") ?? ""}
+              alt="movie_poster"
+              height={250}
+              width={125}
+              className="object-cover hover:opacity-80 transition-opacity"
+            />
+          </Link>
         </div>
         <div className="flex flex-col flex-1 py-3">
           <CardHeader>
