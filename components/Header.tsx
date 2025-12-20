@@ -10,8 +10,9 @@ export default function Header() {
           MovieCritic
         </Link>
         <HeaderNav />
-        <div className="flex-1 max-w-md ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <SearchBar />
+          {/* Profile button placeholder - space reserved for future implementation */}
         </div>
       </div>
     </header>
