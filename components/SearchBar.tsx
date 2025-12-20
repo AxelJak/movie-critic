@@ -104,18 +104,18 @@ export default function SearchBar() {
 
   return (
     <div className="relative flex items-center" ref={searchRef}>
-      {!isExpanded ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleToggleSearch}
-          className="h-9 w-9"
-          aria-label="Search movies"
-        >
-          <Search className="h-5 w-5" />
-        </Button>
-      ) : (
-        <div className="relative w-64 md:w-80">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleToggleSearch}
+        className="h-9 w-9"
+        aria-label="Search movies"
+      >
+        <Search className="h-5 w-5" />
+      </Button>
+
+      {isExpanded && (
+        <div className="absolute right-0 top-0 w-64 md:w-80 z-50">
           <Input
             ref={inputRef}
             placeholder="Search movies..."

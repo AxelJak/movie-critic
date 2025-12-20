@@ -1,6 +1,8 @@
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import HeaderNav from "@/components/HeaderNav";
+import { Button } from "@/components/ui/button";
+import { User } from "lucide-react";
 
 export default function Header() {
   return (
@@ -12,7 +14,14 @@ export default function Header() {
         <HeaderNav />
         <div className="ml-auto flex items-center gap-2">
           <SearchBar />
-          {/* Profile button placeholder - space reserved for future implementation */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            aria-label="User profile"
+          >
+            <User className="h-5 w-5" />
+          </Button>
         </div>
       </div>
     </header>
