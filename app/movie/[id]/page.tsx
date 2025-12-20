@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { Review } from "@/lib/api/types";
 import { pbApi } from "@/lib/api/pocketbase";
 import { tmdbApi } from "@/lib/api/tmdb";
@@ -26,6 +27,43 @@ interface ExpandedReview extends Review {
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+// Generate metadata for SEO
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  try {
+    const { id } = await params;
+    const movie = await tmdbApi.getMovieDetails(parseInt(id));
+
+    const title = `${movie.title} - Movie Critic`;
+    const description = movie.overview || `Watch and review ${movie.title}`;
+    const imageUrl = movie.poster_path
+      ? tmdbApi.getImageUrl(movie.poster_path, "w500")
+      : undefined;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        images: imageUrl ? [{ url: imageUrl, alt: movie.title }] : undefined,
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: imageUrl ? [imageUrl] : undefined,
+      },
+    };
+  } catch (error) {
+    console.error("Error generating metadata:", error);
+    return {
+      title: "Movie Details - Movie Critic",
+      description: "Discover and review movies",
+    };
+  }
+}
 
 // Function to fetch movie data
 async function getMovieData(id: string) {
