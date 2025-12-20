@@ -12,6 +12,26 @@ import ReviewFormWrapper from "@/components/ReviewFormWrapper";
 
 export const dynamic = 'force-dynamic';
 
+// Shimmer effect for loading placeholder
+const shimmer = (w: number, h: number) => `
+<svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="g">
+      <stop stop-color="#333" offset="20%" />
+      <stop stop-color="#222" offset="50%" />
+      <stop stop-color="#333" offset="70%" />
+    </linearGradient>
+  </defs>
+  <rect width="${w}" height="${h}" fill="#333" />
+  <rect id="r" width="${w}" height="${h}" fill="url(#g)" />
+  <animate xlink:href="#r" attributeName="x" from="-${w}" to="${w}" dur="1s" repeatCount="indefinite"  />
+</svg>`;
+
+const toBase64 = (str: string) =>
+  typeof window === 'undefined'
+    ? Buffer.from(str).toString('base64')
+    : window.btoa(str);
+
 // Define expanded review type with user data
 interface ExpandedReview extends Review {
   expand: {
@@ -131,6 +151,8 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               fill
               className="object-cover"
               priority
+              placeholder="blur"
+              blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(1920, 1080))}`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           </div>
@@ -148,6 +170,8 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               alt={movie.title}
               fill
               className="object-cover"
+              placeholder="blur"
+              blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(500, 750))}`}
             />
           </div>
           <div className="flex flex-col mt-auto text-white text-center sm:text-left">
