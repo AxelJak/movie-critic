@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 import ReviewFormWrapper from "@/components/ReviewFormWrapper";
 
+export const dynamic = 'force-dynamic';
+
 // Define expanded review type with user data
 interface ExpandedReview extends Review {
   expand: {
