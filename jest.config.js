@@ -22,7 +22,7 @@ const customJestConfig = {
   ],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/(?!(pocketbase)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
 }
