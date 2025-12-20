@@ -142,7 +142,7 @@ export default function SearchBar() {
                 placeholder="Search movies..."
                 value={query}
                 onChange={handleInputChange}
-                className="w-full h-12 text-base pr-10 shadow-2xl"
+                className="w-full h-12 text-base pr-10 shadow-2xl bg-white dark:bg-gray-900 border-0"
               />
               <Button
                 variant="ghost"
@@ -156,7 +156,7 @@ export default function SearchBar() {
             </div>
 
             {showResults && (results.length > 0 || isLoading) && (
-              <Card className="mt-2 max-h-[60vh] overflow-auto shadow-2xl">
+              <Card className="mt-2 max-h-[60vh] overflow-auto shadow-2xl bg-white dark:bg-gray-900 border-0">
                 {isLoading ? (
                   <div className="p-4 text-center text-gray-500">
                     Loading...
