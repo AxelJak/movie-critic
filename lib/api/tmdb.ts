@@ -3,6 +3,8 @@ import {
   TMDBSearchResult,
   TMDBCastMember,
   TMDBGenre,
+  TMDBPerson,
+  TMDBPersonCredits,
 } from "./types";
 
 class TMDBApiService {
@@ -136,6 +138,22 @@ class TMDBApiService {
     return movieDetails.credits.cast
       .sort((a, b) => a.order - b.order)
       .slice(0, limit);
+  }
+
+  /**
+   * Get person/actor details
+   */
+  async getPersonDetails(personId: number): Promise<TMDBPerson> {
+    return this.fetchFromTMDB<TMDBPerson>(`/person/${personId}`);
+  }
+
+  /**
+   * Get movie credits for a person/actor
+   */
+  async getPersonMovieCredits(personId: number): Promise<TMDBPersonCredits> {
+    return this.fetchFromTMDB<TMDBPersonCredits>(
+      `/person/${personId}/movie_credits`,
+    );
   }
 }
 
