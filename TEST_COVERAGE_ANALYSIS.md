@@ -12,22 +12,180 @@ The codebase currently has:
 
 ## Recommended Testing Infrastructure
 
-### 1. Testing Framework Setup
+### 1. Testing Framework: Jest
 
-Install the following dependencies:
+**Why Jest for Next.js?**
+- ✅ Officially recommended by Next.js team
+- ✅ Next.js provides `next/jest` helper for easy configuration
+- ✅ Better documentation and examples for Next.js app router
+- ✅ Established patterns for testing Server Components
+- ✅ Larger community support for Next.js-specific issues
+
+While Vitest is faster and more modern, Jest is the safer choice for Next.js projects due to better ecosystem support and official integration.
+
+### 2. Install Dependencies
 
 ```bash
-pnpm add -D vitest @vitejs/plugin-react jsdom
+# Core testing dependencies
+pnpm add -D jest jest-environment-jsdom @types/jest
+
+# React testing utilities
 pnpm add -D @testing-library/react @testing-library/jest-dom @testing-library/user-event
+
+# API mocking
+pnpm add -D msw@latest
+
+# Optional: React hooks testing (if needed)
 pnpm add -D @testing-library/react-hooks
-pnpm add -D msw@latest  # For API mocking
 ```
 
-### 2. Configuration Files Needed
+### 3. Configuration Files Needed
 
-- `vitest.config.ts` - Vitest configuration
-- `setupTests.ts` - Global test setup
-- `.github/workflows/test.yml` - CI/CD pipeline (optional)
+Create the following files:
+
+**jest.config.js:**
+```javascript
+const nextJest = require('next/jest')
+
+// Providing the path to your Next.js app which will enable loading next.config.js and .env files
+const createJestConfig = nextJest({
+  dir: './',
+})
+
+// Any custom config you want to pass to Jest
+const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testEnvironment: 'jest-environment-jsdom',
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
+  collectCoverageFrom: [
+    'app/**/*.{js,jsx,ts,tsx}',
+    'components/**/*.{js,jsx,ts,tsx}',
+    'lib/**/*.{js,ts}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+  ],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  transformIgnorePatterns: [
+    '/node_modules/',
+    '^.+\\.module\\.(css|sass|scss)$',
+  ],
+}
+
+// createJestConfig is exported this way to ensure that next/jest can load the Next.js config
+module.exports = createJestConfig(customJestConfig)
+```
+
+**jest.setup.js:**
+```javascript
+import '@testing-library/jest-dom'
+
+// Mock Next.js Image component
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props) => {
+    // eslint-disable-next-line jsx-a11y/alt-text
+    return <img {...props} />
+  },
+}))
+
+// Mock Next.js navigation
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    pathname: '/',
+    query: {},
+    asPath: '/',
+  }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}))
+```
+
+**.env.test:**
+```bash
+NEXT_PUBLIC_TMDB_API_KEY=test_api_key
+NEXT_PUBLIC_TMDB_API_URL=https://api.themoviedb.org/3
+NEXT_PUBLIC_TMDB_IMAGE_URL=https://image.tmdb.org/t/p
+NEXT_PUBLIC_POCKETBASE_URL=http://localhost:8090
+```
+
+Additional optional files:
+- `.github/workflows/test.yml` - CI/CD pipeline
+
+### 4. API Mocking with MSW (Mock Service Worker)
+
+For realistic API testing, set up MSW:
+
+**lib/test/mocks/handlers.ts:**
+```typescript
+import { http, HttpResponse } from 'msw'
+
+export const handlers = [
+  // Mock TMDB API
+  http.get('https://api.themoviedb.org/3/movie/:id', () => {
+    return HttpResponse.json({
+      id: 123,
+      title: 'Test Movie',
+      overview: 'A test movie',
+      vote_average: 7.5,
+      // ... other fields
+    })
+  }),
+
+  // Mock PocketBase API
+  http.post('http://localhost:8090/api/collections/users/auth-with-password', () => {
+    return HttpResponse.json({
+      token: 'test-token',
+      record: { id: 'user123', email: 'test@example.com' },
+    })
+  }),
+]
+```
+
+**lib/test/mocks/server.ts:**
+```typescript
+import { setupServer } from 'msw/node'
+import { handlers } from './handlers'
+
+export const server = setupServer(...handlers)
+```
+
+Update **jest.setup.js** to include MSW:
+```javascript
+import '@testing-library/jest-dom'
+import { server } from './lib/test/mocks/server'
+
+// Establish API mocking before all tests
+beforeAll(() => server.listen())
+
+// Reset any request handlers that are declared in tests
+afterEach(() => server.resetHandlers())
+
+// Clean up after tests finish
+afterAll(() => server.close())
+
+// ... (existing mocks)
+```
+
+### 5. Jest vs Vitest Comparison
+
+| Feature | Jest | Vitest |
+|---------|------|--------|
+| **Next.js Integration** | ✅ Official support with `next/jest` | ⚠️ Requires manual config |
+| **Speed** | ⚠️ Slower | ✅ Significantly faster |
+| **Documentation** | ✅ Extensive Next.js examples | ⚠️ Limited Next.js docs |
+| **Community** | ✅ Large Next.js community | ⚠️ Smaller for Next.js |
+| **ESM Support** | ⚠️ Can be tricky | ✅ Native ESM support |
+| **Configuration** | ✅ Simple with Next.js | ⚠️ More manual work |
+| **Maturity** | ✅ Battle-tested | ⚠️ Newer tool |
+
+**Recommendation:** Use Jest for this project due to better Next.js integration and community support.
 
 ## Priority Test Areas
 
@@ -44,23 +202,72 @@ These areas contain core business logic and should be tested first:
 
 **Recommended Tests:**
 ```typescript
-// lib/utils.test.ts
+// __tests__/lib/utils.test.ts
+import { formatDate, formatRuntime, debounce } from '@/lib/utils'
+
 describe('formatDate', () => {
-  test('formats ISO date correctly')
-  test('handles invalid dates')
+  test('formats ISO date correctly', () => {
+    const result = formatDate('2025-04-15')
+    expect(result).toBe('April 15, 2025')
+  })
+
+  test('handles different date formats', () => {
+    const result = formatDate('2025-01-01T00:00:00Z')
+    expect(result).toContain('January')
+  })
 })
 
 describe('formatRuntime', () => {
-  test('converts minutes to hours and minutes')
-  test('handles zero and edge cases')
-  test('handles only hours or only minutes')
+  test('converts minutes to hours and minutes', () => {
+    expect(formatRuntime(150)).toBe('2h 30m')
+  })
+
+  test('handles only hours', () => {
+    expect(formatRuntime(120)).toBe('2h')
+  })
+
+  test('handles only minutes', () => {
+    expect(formatRuntime(45)).toBe('45m')
+  })
+
+  test('handles zero runtime', () => {
+    expect(formatRuntime(0)).toBe('')
+  })
 })
 
 describe('debounce', () => {
-  test('delays function execution')
-  test('cancels previous calls')
+  jest.useFakeTimers()
+
+  test('delays function execution', () => {
+    const mockFn = jest.fn()
+    const debouncedFn = debounce(mockFn, 300)
+
+    debouncedFn()
+    expect(mockFn).not.toHaveBeenCalled()
+
+    jest.advanceTimersByTime(300)
+    expect(mockFn).toHaveBeenCalledTimes(1)
+  })
+
+  test('cancels previous calls', () => {
+    const mockFn = jest.fn()
+    const debouncedFn = debounce(mockFn, 300)
+
+    debouncedFn()
+    debouncedFn()
+    debouncedFn()
+
+    jest.advanceTimersByTime(300)
+    expect(mockFn).toHaveBeenCalledTimes(1) // Only last call executes
+  })
 })
 ```
+
+**Why start here?**
+- ✅ No external dependencies
+- ✅ Pure functions, easy to test
+- ✅ Quick validation of test setup
+- ✅ Builds confidence before tackling complex tests
 
 #### 2. TMDB API Service (`lib/api/tmdb.ts`)
 **Risk:** External API dependency, network failures
@@ -302,7 +509,20 @@ describe('Movie Detail Page', () => {
 
 ### Challenge 1: PocketBase Singleton
 **Problem:** PocketBase uses singleton pattern making it hard to mock
-**Solution:** Use dependency injection or module mocking with Vitest
+**Solution:** Use Jest module mocking with `jest.mock()` to mock the entire module
+
+**Example:**
+```typescript
+// __tests__/lib/api/pocketbase.test.ts
+jest.mock('@/lib/api/pocketbase', () => ({
+  pbApi: {
+    login: jest.fn(),
+    register: jest.fn(),
+    isAuthenticated: false,
+    currentUser: null,
+  },
+}))
+```
 
 ### Challenge 2: Server Components
 **Problem:** Server components can't be tested with traditional React testing
@@ -376,11 +596,11 @@ Add to `package.json`:
 ```json
 {
   "scripts": {
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "test:watch": "vitest --watch",
-    "test:ci": "vitest run --coverage"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
   }
 }
 ```
@@ -388,12 +608,28 @@ Add to `package.json`:
 ## Next Steps
 
 1. **Install testing dependencies** (see section above)
-2. **Create vitest.config.ts** and **setupTests.ts**
-3. **Start with utility functions** - easiest wins
-4. **Move to API services** - highest risk areas
-5. **Add component tests** - user-facing functionality
-6. **Set up CI/CD** - automate testing on every commit
-7. **Track coverage** - aim for 80%+ overall
+2. **Create jest.config.js, jest.setup.js, and .env.test**
+3. **Add test scripts to package.json**
+4. **Start with utility functions** - easiest wins, quick validation
+5. **Move to API services** - highest risk areas (TMDB, PocketBase)
+6. **Add component tests** - user-facing functionality
+7. **Set up CI/CD** - automate testing on every commit/PR
+8. **Track coverage metrics** - aim for 80%+ overall coverage
+
+### Quick Start Command
+
+```bash
+# Install dependencies
+pnpm add -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event @types/jest
+
+# Create config files (copy from examples above)
+touch jest.config.js jest.setup.js .env.test
+
+# Add test scripts to package.json (see Recommended npm Scripts section)
+
+# Run tests
+pnpm test
+```
 
 ## Conclusion
 
