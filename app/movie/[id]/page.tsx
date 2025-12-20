@@ -119,7 +119,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <div className="relative w-full h-[50vh] md:h-[60vh]">
+      <div className="relative w-full h-[40vh] sm:h-[50vh] md:h-[60vh]">
         {movie.backdrop_path ? (
           <div className="absolute inset-0">
             <Image
@@ -132,14 +132,14 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           </div>
         ) : (
           <div className="absolute inset-0 bg-gray-900" />
         )}
 
-        <div className="container relative z-10 flex flex-col sm:flex-row items-center gap-6 h-full pb-8">
-          <div className="flex-shrink-0 md:w-48 aspect-[2/3] relative mt-auto drop-shadow-xl rounded-md overflow-hidden">
+        <div className="container relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6 h-full pb-6 sm:pb-8 px-4 sm:px-6">
+          <div className="flex-shrink-0 w-32 sm:w-40 md:w-48 aspect-[2/3] relative mt-auto drop-shadow-xl rounded-md overflow-hidden">
             <Image
               src={
                 tmdbApi.getImageUrl(movie.poster_path, "w500") ||
@@ -150,9 +150,9 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               className="object-cover"
             />
           </div>
-          <div className="flex flex-col mt-auto text-gray-700">
-            <h1 className="text-3xl md:text-5xl font-bold">{movie.title}</h1>
-            <div className="flex flex-wrap gap-2 mt-2 text-sm md:text-base text-gray-500">
+          <div className="flex flex-col mt-auto text-white text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold drop-shadow-lg">{movie.title}</h1>
+            <div className="flex flex-wrap gap-2 mt-2 text-xs sm:text-sm md:text-base text-gray-200 justify-center sm:justify-start">
               {movie.release_date && (
                 <span>{new Date(movie.release_date).getFullYear()}</span>
               )}
@@ -168,17 +168,17 @@ export default async function MovieDetailsPage({ params }: PageProps) {
       </div>
 
       {/* Main Content */}
-      <div className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="container py-4 sm:py-6 md:py-8 px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Left Column: Details and Cast */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Ratings Section */}
-            <div className="flex flex-shrink-0 flex-row justify-center md:justify-start gap-4 p-4 bg-card rounded-lg shadow">
+            <div className="flex flex-shrink-0 flex-row justify-center sm:justify-start gap-6 sm:gap-8 p-4 sm:p-6 bg-card rounded-lg shadow">
               <div className="flex flex-col items-center">
-                <span className="text-sm font-medium">Our Rating</span>
-                <div className="text-3xl font-bold mt-1">
+                <span className="text-xs sm:text-sm font-medium">Our Rating</span>
+                <div className="text-2xl sm:text-3xl font-bold mt-1">
                   {siteRating.toFixed(1)}
-                  <span className="text-base font-normal text-muted-foreground">
+                  <span className="text-sm sm:text-base font-normal text-muted-foreground">
                     /10
                   </span>
                 </div>
@@ -187,13 +187,13 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                 </span>
               </div>
 
-              <div className="h-12 w-px bg-border hidden md:block" />
+              <div className="h-12 w-px bg-border" />
 
               <div className="flex flex-col items-center">
-                <span className="text-sm font-medium">TMDB Rating</span>
-                <div className="text-3xl font-bold mt-1">
+                <span className="text-xs sm:text-sm font-medium">TMDB Rating</span>
+                <div className="text-2xl sm:text-3xl font-bold mt-1">
                   {movie.vote_average.toFixed(1)}
-                  <span className="text-base font-normal text-muted-foreground">
+                  <span className="text-sm sm:text-base font-normal text-muted-foreground">
                     /10
                   </span>
                 </div>
@@ -202,12 +202,12 @@ export default async function MovieDetailsPage({ params }: PageProps) {
 
             {/* Movie Details */}
             <div>
-              <h2 className="text-2xl font-semibold mb-4">About</h2>
-              <div className="space-y-4">
-                <p className="text-muted-foreground">{movie.overview}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">About</h2>
+              <div className="space-y-3 sm:space-y-4">
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{movie.overview}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   {movie.release_date && (
-                    <div>
+                    <div className="text-sm sm:text-base">
                       <span className="font-medium">Release Date: </span>
                       <span className="text-muted-foreground">
                         {formatDate(movie.release_date)}
@@ -221,14 +221,14 @@ export default async function MovieDetailsPage({ params }: PageProps) {
             {/* Cast Section */}
             {cast.length > 0 && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4">Cast</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">Cast</h2>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
                   {cast.map((member) => (
                     <div
                       key={member.id}
                       className="flex flex-col items-center text-center"
                     >
-                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2">
                         <Image
                           src={
                             tmdbApi.getImageUrl(member.profile_path, "w185") ||
@@ -240,7 +240,7 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                           className="object-cover w-full h-full"
                         />
                       </div>
-                      <span className="font-medium text-sm line-clamp-1">
+                      <span className="font-medium text-xs sm:text-sm line-clamp-1">
                         {member.name}
                       </span>
                       <span className="text-xs text-muted-foreground line-clamp-1">
@@ -255,11 +255,11 @@ export default async function MovieDetailsPage({ params }: PageProps) {
 
           {/* Right Column: Reviews */}
           <div>
-            <div className="sticky top-4 space-y-4">
-              <h2 className="text-2xl font-semibold">Reviews</h2>
+            <div className="lg:sticky lg:top-4 space-y-3 sm:space-y-4">
+              <h2 className="text-xl sm:text-2xl font-semibold">Reviews</h2>
 
               {/* Add review form */}
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <ReviewFormWrapper
                   movieId={pocketbaseMovieId}
                   tmdbId={movie.id}
@@ -267,11 +267,11 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               </div>
 
               {reviews.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {reviews.map((review) => (
-                    <Card key={review.id} className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                    <Card key={review.id} className="p-3 sm:p-4">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
                           <Image
                             src={
                               review.expand.user?.avatar ||
@@ -284,22 +284,22 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <span className="font-medium">
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-medium text-sm sm:text-base truncate">
                               {review.expand.user.name}
                             </span>
-                            <div className="flex items-center">
-                              <span className="font-bold">{review.rating}</span>
+                            <div className="flex items-center flex-shrink-0">
+                              <span className="font-bold text-sm sm:text-base">{review.rating}</span>
                               <span className="text-xs text-muted-foreground">
                                 /10
                               </span>
                             </div>
                           </div>
                           {review.title && (
-                            <h4 className="font-medium mt-1">{review.title}</h4>
+                            <h4 className="font-medium mt-1 text-sm sm:text-base">{review.title}</h4>
                           )}
                           {review.content && (
-                            <p className="text-sm mt-1 text-muted-foreground line-clamp-3">
+                            <p className="text-xs sm:text-sm mt-1 text-muted-foreground line-clamp-3">
                               {review.contains_spoilers && (
                                 <span className="text-xs font-medium text-destructive mr-1">
                                   [SPOILERS]
@@ -317,15 +317,15 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                   ))}
 
                   {reviews.length > 3 && (
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full text-sm sm:text-base">
                       View All {reviews.length} Reviews
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className="text-center p-8 border border-dashed rounded-lg">
-                  <p className="text-muted-foreground">No reviews yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                <div className="text-center p-6 sm:p-8 border border-dashed rounded-lg">
+                  <p className="text-sm sm:text-base text-muted-foreground">No reviews yet</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     Be the first to share your thoughts!
                   </p>
                 </div>
