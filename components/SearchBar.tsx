@@ -21,7 +21,13 @@ export default function SearchBar() {
   const [results, setResults] = useState<TMDBMovie[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
   const router = useRouter();
+
+  // Detect if user is on Mac
+  useEffect(() => {
+    setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform));
+  }, []);
 
   // Keyboard shortcut to open search (⌘K or Ctrl+K)
   useEffect(() => {
@@ -90,12 +96,16 @@ export default function SearchBar() {
     <>
       <Button
         variant="ghost"
-        size="icon"
         onClick={() => setOpen(true)}
-        className="h-9 w-9"
+        className="gap-2 h-9 px-3"
         aria-label="Search movies"
       >
-        <Search className="h-5 w-5" />
+        <Search className="h-4 w-4" />
+        <span className="hidden md:inline-flex items-center gap-1 text-sm text-muted-foreground">
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <span className="text-xs">{isMac ? "⌘" : "Ctrl"}</span>K
+          </kbd>
+        </span>
       </Button>
 
       <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
