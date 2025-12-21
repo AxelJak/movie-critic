@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
+import PasswordChangeForm from "./PasswordChangeForm";
 
 interface ProfileEditorProps {
   onClose: () => void;
@@ -83,93 +84,98 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
   };
   
   return (
-    <Card className="p-6 max-w-xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Edit Profile</h2>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="flex flex-col md:flex-row gap-6 mb-6">
-          {/* Avatar section */}
-          <div className="flex flex-col items-center">
-            <div 
-              onClick={handleAvatarClick}
-              className="relative w-32 h-32 rounded-full overflow-hidden mb-2 cursor-pointer border-2 border-dashed border-gray-300 hover:border-primary"
-            >
-              {avatarPreview ? (
-                <Image 
-                  src={avatarPreview} 
-                  alt="Profile avatar" 
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-3xl">{user?.name.charAt(0) || '?'}</span>
+    <div className="max-w-xl mx-auto space-y-6">
+      <Card className="p-6">
+        <h2 className="text-2xl font-bold mb-6">Edit Profile</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col md:flex-row gap-6 mb-6">
+            {/* Avatar section */}
+            <div className="flex flex-col items-center">
+              <div
+                onClick={handleAvatarClick}
+                className="relative w-32 h-32 rounded-full overflow-hidden mb-2 cursor-pointer border-2 border-dashed border-gray-300 hover:border-primary"
+              >
+                {avatarPreview ? (
+                  <Image
+                    src={avatarPreview}
+                    alt="Profile avatar"
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-3xl">{user?.name.charAt(0) || '?'}</span>
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white text-sm">Change avatar</span>
                 </div>
-              )}
-              
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-white text-sm">Change avatar</span>
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+
+              <span className="text-sm text-gray-500">Click to upload</span>
+            </div>
+
+            {/* Form fields */}
+            <div className="flex-1 space-y-4">
+              <div>
+                <Label htmlFor="name">Display Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={user?.email || ""}
+                  disabled
+                  className="bg-gray-50"
+                />
+                <span className="text-xs text-gray-500 mt-1 block">Email cannot be changed</span>
               </div>
             </div>
-            
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-            
-            <span className="text-sm text-gray-500">Click to upload</span>
           </div>
-          
-          {/* Form fields */}
-          <div className="flex-1 space-y-4">
-            <div>
-              <Label htmlFor="name">Display Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
+
+          {error && (
+            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+              {error}
             </div>
-            
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={user?.email || ""}
-                disabled
-                className="bg-gray-50"
-              />
-              <span className="text-xs text-gray-500 mt-1 block">Email cannot be changed</span>
+          )}
+
+          {success && (
+            <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
+              {success}
             </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
-        </div>
-        
-        {error && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
-            {success}
-          </div>
-        )}
-        
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      </form>
-    </Card>
+        </form>
+      </Card>
+
+      {/* Password Change Section */}
+      <PasswordChangeForm />
+    </div>
   );
 }

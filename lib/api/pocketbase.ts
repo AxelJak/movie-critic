@@ -47,8 +47,16 @@ class PocketBaseService {
 
         // Add auth state change listener
         this.pb.authStore.onChange(() => {
+          // Get remember me preference to set cookie expiration
+          const rememberMe = localStorage.getItem('rememberMe') === 'true';
+          const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60; // 30 days or 24 hours
+
           document.cookie = this.pb.authStore.exportToCookie({
-            httpOnly: false,
+            httpOnly: false, // Cannot be true as client needs access
+            secure: window.location.protocol === 'https:', // Only send over HTTPS in production
+            sameSite: 'Lax', // CSRF protection
+            path: '/',
+            maxAge: maxAge,
           });
         });
       }
@@ -195,6 +203,28 @@ class PocketBaseService {
   }
 
   /**
+   * Request password reset
+   */
+  async requestPasswordReset(email: string): Promise<boolean> {
+    await this.pb.collection("users").requestPasswordReset(email);
+    return true;
+  }
+
+  /**
+   * Confirm password reset
+   */
+  async confirmPasswordReset(
+    token: string,
+    password: string,
+    passwordConfirm: string
+  ): Promise<boolean> {
+    await this.pb
+      .collection("users")
+      .confirmPasswordReset(token, password, passwordConfirm);
+    return true;
+  }
+
+  /**
    * Update user profile
    */
   async updateProfile(data: Partial<User>): Promise<User> {
@@ -221,6 +251,26 @@ class PocketBaseService {
     const user = await this.pb
       .collection("users")
       .update<User>(userId!, formData);
+
+    return user;
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+    newPasswordConfirm: string
+  ): Promise<User> {
+    if (!this.isAuthenticated) throw new Error("User not authenticated");
+
+    const userId = this.currentUser?.id;
+    const user = await this.pb.collection("users").update<User>(userId!, {
+      oldPassword,
+      password: newPassword,
+      passwordConfirm: newPasswordConfirm,
+    });
 
     return user;
   }
