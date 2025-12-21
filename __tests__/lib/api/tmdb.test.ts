@@ -592,4 +592,196 @@ describe('TMDBApiService', () => {
       expect(cast).toHaveLength(10)
     })
   })
+
+  describe('getPersonDetails', () => {
+    beforeEach(() => {
+      global.fetch = jest.fn()
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    test('fetches person details successfully', async () => {
+      const mockPerson = {
+        id: 123,
+        name: 'John Doe',
+        biography: 'A talented actor',
+        birthday: '1980-01-01',
+        deathday: null,
+        place_of_birth: 'Los Angeles, CA',
+        profile_path: '/profile.jpg',
+        popularity: 85.5,
+        known_for_department: 'Acting',
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPerson,
+      })
+
+      const result = await tmdbApi.getPersonDetails(123)
+
+      expect(global.fetch).toHaveBeenCalled()
+      const fetchCall = (global.fetch as jest.Mock).mock.calls[0][0]
+      expect(fetchCall).toContain('/person/123')
+      expect(result).toEqual(mockPerson)
+    })
+
+    test('handles person not found error', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      })
+
+      await expect(tmdbApi.getPersonDetails(999)).rejects.toThrow(
+        'TMDB API error: 404 Not Found'
+      )
+    })
+
+    test('handles network errors', async () => {
+      ;(global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error('Network error')
+      )
+
+      await expect(tmdbApi.getPersonDetails(123)).rejects.toThrow(
+        'Network error'
+      )
+    })
+  })
+
+  describe('getPersonMovieCredits', () => {
+    beforeEach(() => {
+      global.fetch = jest.fn()
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    test('fetches person movie credits successfully', async () => {
+      const mockCredits = {
+        id: 123,
+        cast: [
+          {
+            id: 1,
+            title: 'Movie One',
+            original_title: 'Movie One',
+            poster_path: '/poster1.jpg',
+            backdrop_path: '/backdrop1.jpg',
+            release_date: '2024-01-01',
+            overview: 'First movie',
+            vote_average: 8.5,
+            character: 'Main Character',
+            credit_id: 'credit1',
+            order: 0,
+          },
+          {
+            id: 2,
+            title: 'Movie Two',
+            original_title: 'Movie Two',
+            poster_path: '/poster2.jpg',
+            backdrop_path: '/backdrop2.jpg',
+            release_date: '2023-06-15',
+            overview: 'Second movie',
+            vote_average: 7.8,
+            character: 'Supporting Role',
+            credit_id: 'credit2',
+            order: 1,
+          },
+        ],
+        crew: [],
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCredits,
+      })
+
+      const result = await tmdbApi.getPersonMovieCredits(123)
+
+      expect(global.fetch).toHaveBeenCalled()
+      const fetchCall = (global.fetch as jest.Mock).mock.calls[0][0]
+      expect(fetchCall).toContain('/person/123/movie_credits')
+      expect(result).toEqual(mockCredits)
+      expect(result.cast).toHaveLength(2)
+      expect(result.cast[0].title).toBe('Movie One')
+    })
+
+    test('handles empty filmography', async () => {
+      const mockCredits = {
+        id: 123,
+        cast: [],
+        crew: [],
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCredits,
+      })
+
+      const result = await tmdbApi.getPersonMovieCredits(123)
+
+      expect(result.cast).toHaveLength(0)
+      expect(result.crew).toHaveLength(0)
+    })
+
+    test('handles API errors', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+
+      await expect(tmdbApi.getPersonMovieCredits(123)).rejects.toThrow(
+        'TMDB API error: 500 Internal Server Error'
+      )
+    })
+
+    test('includes crew credits', async () => {
+      const mockCredits = {
+        id: 123,
+        cast: [
+          {
+            id: 1,
+            title: 'Movie One',
+            original_title: 'Movie One',
+            poster_path: '/poster1.jpg',
+            backdrop_path: null,
+            release_date: '2024-01-01',
+            overview: 'Acting role',
+            vote_average: 8.5,
+            character: 'Main Character',
+            credit_id: 'credit1',
+            order: 0,
+          },
+        ],
+        crew: [
+          {
+            id: 2,
+            title: 'Movie Two',
+            original_title: 'Movie Two',
+            poster_path: '/poster2.jpg',
+            backdrop_path: null,
+            release_date: '2023-01-01',
+            overview: 'Directing role',
+            vote_average: 7.5,
+            credit_id: 'credit2',
+          },
+        ],
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCredits,
+      })
+
+      const result = await tmdbApi.getPersonMovieCredits(123)
+
+      expect(result.cast).toHaveLength(1)
+      expect(result.crew).toHaveLength(1)
+      expect(result.crew[0].title).toBe('Movie Two')
+    })
+  })
 })
