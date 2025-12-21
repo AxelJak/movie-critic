@@ -30,10 +30,34 @@ describe('SearchBar', () => {
     )
   })
 
-  test('renders search input', () => {
+  const openSearchDialog = async () => {
+    const searchButton = screen.getByLabelText('Search movies')
+    await userEvent.click(searchButton)
+  }
+
+  test('renders search button', () => {
     render(<SearchBar />)
+    const searchButton = screen.getByLabelText('Search movies')
+    expect(searchButton).toBeInTheDocument()
+  })
+
+  test('opens search dialog when button is clicked', async () => {
+    render(<SearchBar />)
+    await openSearchDialog()
+
     const input = screen.getByPlaceholderText('Search movies...')
     expect(input).toBeInTheDocument()
+  })
+
+  test('opens search dialog with keyboard shortcut', async () => {
+    render(<SearchBar />)
+
+    fireEvent.keyDown(document, { key: 'k', metaKey: true })
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText('Search movies...')
+      expect(input).toBeInTheDocument()
+    })
   })
 
   test('displays loading state while searching', async () => {
@@ -54,6 +78,7 @@ describe('SearchBar', () => {
     )
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Inception')
@@ -99,6 +124,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Inc')
@@ -134,6 +160,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Movie')
@@ -171,6 +198,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Test')
@@ -209,8 +237,13 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
-    const input = screen.getByPlaceholderText('Search movies...') as HTMLInputElement
+    await openSearchDialog()
 
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search movies...')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Search movies...') as HTMLInputElement
     await userEvent.type(input, 'Test')
 
     await waitFor(() => {
@@ -220,7 +253,10 @@ describe('SearchBar', () => {
     const movieResult = screen.getByText('Test Movie')
     fireEvent.click(movieResult)
 
-    expect(input.value).toBe('')
+    // After clicking, dialog closes and input is no longer in the document
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search movies...')).not.toBeInTheDocument()
+    })
   })
 
   test('hides results when input is cleared', async () => {
@@ -247,6 +283,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Test')
@@ -273,6 +310,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValue(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     // Type quickly
@@ -308,6 +346,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'No Date')
@@ -342,6 +381,7 @@ describe('SearchBar', () => {
     ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'No Poster')
@@ -359,6 +399,7 @@ describe('SearchBar', () => {
     )
 
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, 'Error')
@@ -375,6 +416,7 @@ describe('SearchBar', () => {
 
   test('does not search with empty query', async () => {
     render(<SearchBar />)
+    await openSearchDialog()
     const input = screen.getByPlaceholderText('Search movies...')
 
     await userEvent.type(input, '   ')
@@ -384,43 +426,17 @@ describe('SearchBar', () => {
     expect(tmdbApi.searchMovies).not.toHaveBeenCalled()
   })
 
-  test('closes results when clicking outside', async () => {
-    const mockResults = {
-      results: [
-        {
-          id: 123,
-          title: 'Test Movie',
-          original_title: 'Test Movie',
-          poster_path: '/test.jpg',
-          backdrop_path: null,
-          release_date: '2025-01-01',
-          runtime: 120,
-          overview: 'A test movie',
-          vote_average: 8.0,
-          genres: [],
-        },
-      ],
-      page: 1,
-      total_pages: 1,
-      total_results: 1,
-    }
+  test('closes dialog when Escape is pressed', async () => {
+    render(<SearchBar />)
+    await openSearchDialog()
 
-    ;(tmdbApi.searchMovies as jest.Mock).mockResolvedValueOnce(mockResults)
-
-    const { container } = render(<SearchBar />)
     const input = screen.getByPlaceholderText('Search movies...')
+    expect(input).toBeInTheDocument()
 
-    await userEvent.type(input, 'Test')
-
-    await waitFor(() => {
-      expect(screen.getByText('Test Movie')).toBeInTheDocument()
-    }, { timeout: 2000 })
-
-    // Click outside the search component
-    fireEvent.mouseDown(container)
+    fireEvent.keyDown(input, { key: 'Escape' })
 
     await waitFor(() => {
-      expect(screen.queryByText('Test Movie')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Search movies...')).not.toBeInTheDocument()
     }, { timeout: 1000 })
   })
 })

@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Review } from "@/lib/api/types";
 import { pbApi } from "@/lib/api/pocketbase";
@@ -242,17 +243,98 @@ export default async function MovieDetailsPage({ params }: PageProps) {
               </div>
             </div>
 
+            {/* Reviews Section - shown on mobile only */}
+            <div className="lg:hidden">
+              <div className="space-y-3 sm:space-y-4">
+                <h2 className="text-xl sm:text-2xl font-semibold">Reviews</h2>
+
+                {/* Add review form */}
+                <div className="mb-4 sm:mb-6">
+                  <ReviewFormWrapper
+                    movieId={pocketbaseMovieId}
+                    tmdbId={movie.id}
+                  />
+                </div>
+
+                {reviews.length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    {reviews.map((review) => (
+                      <Card key={review.id} className="p-3 sm:p-4">
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
+                            <Image
+                              src={
+                                review.expand.user?.avatar ||
+                                "/placeholder-avatar.jpg"
+                              }
+                              alt={review.expand.user.name}
+                              width={40}
+                              height={40}
+                              className="object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-medium text-sm sm:text-base truncate">
+                                {review.expand.user.name}
+                              </span>
+                              <div className="flex items-center flex-shrink-0">
+                                <span className="font-bold text-sm sm:text-base">{review.rating}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  /10
+                                </span>
+                              </div>
+                            </div>
+                            {review.title && (
+                              <h4 className="font-medium mt-1 text-sm sm:text-base">{review.title}</h4>
+                            )}
+                            {review.content && (
+                              <p className="text-xs sm:text-sm mt-1 text-muted-foreground line-clamp-3">
+                                {review.contains_spoilers && (
+                                  <span className="text-xs font-medium text-destructive mr-1">
+                                    [SPOILERS]
+                                  </span>
+                                )}
+                                {review.content}
+                              </p>
+                            )}
+                            <div className="text-xs text-muted-foreground mt-2">
+                              {formatDate(review.created)}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+
+                    {reviews.length > 3 && (
+                      <Button variant="outline" className="w-full text-sm sm:text-base">
+                        View All {reviews.length} Reviews
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center p-6 sm:p-8 border border-dashed rounded-lg">
+                    <p className="text-sm sm:text-base text-muted-foreground">No reviews yet</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      Be the first to share your thoughts!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Cast Section */}
             {cast.length > 0 && (
               <div>
                 <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">Cast</h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
                   {cast.map((member) => (
-                    <div
+                    <Link
                       key={member.id}
-                      className="flex flex-col items-center text-center"
+                      href={`/actor/${member.id}`}
+                      className="flex flex-col items-center text-center group"
                     >
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2 ring-2 ring-transparent group-hover:ring-primary transition-all">
                         <Image
                           src={
                             tmdbApi.getImageUrl(member.profile_path, "w185") ||
@@ -261,24 +343,24 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                           alt={member.name}
                           width={96}
                           height={96}
-                          className="object-cover w-full h-full"
+                          className="object-cover w-full h-full group-hover:scale-110 transition-transform"
                         />
                       </div>
-                      <span className="font-medium text-xs sm:text-sm line-clamp-1">
+                      <span className="font-medium text-xs sm:text-sm line-clamp-1 group-hover:text-primary transition-colors">
                         {member.name}
                       </span>
                       <span className="text-xs text-muted-foreground line-clamp-1">
                         {member.character}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Right Column: Reviews */}
-          <div>
+          {/* Right Column: Reviews - shown on desktop only */}
+          <div className="hidden lg:block">
             <div className="lg:sticky lg:top-4 space-y-3 sm:space-y-4">
               <h2 className="text-xl sm:text-2xl font-semibold">Reviews</h2>
 

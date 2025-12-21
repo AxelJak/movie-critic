@@ -123,3 +123,38 @@ export interface WatchlistMovie {
   created: string;
   updated: string;
 }
+
+/**
+ * TMDB Person/Actor Types
+ */
+export interface TMDBPerson {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  profile_path: string | null;
+  popularity: number;
+  known_for_department: string;
+}
+
+export interface TMDBMovieCredit {
+  id: number;
+  title: string;
+  original_title: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date: string;
+  overview: string;
+  vote_average: number;
+  character?: string;
+  credit_id: string;
+  order?: number;
+}
+
+export interface TMDBPersonCredits {
+  id: number;
+  cast: TMDBMovieCredit[];
+  crew: TMDBMovieCredit[];
+}
