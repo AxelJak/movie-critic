@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import PocketBase from 'pocketbase';
 
 // Define protected routes that require authentication
 const protectedRoutes = ['/profile', '/watchlists'];
@@ -20,9 +21,22 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // Get the auth cookie
+  // Get the auth cookie and validate it properly
   const authCookie = request.cookies.get('pb_auth');
-  const isAuthenticated = authCookie && authCookie.value;
+  let isAuthenticated = false;
+
+  if (authCookie?.value) {
+    try {
+      // Create a PocketBase instance and load the auth cookie
+      const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+      pb.authStore.loadFromCookie(`pb_auth=${authCookie.value}`);
+      isAuthenticated = pb.authStore.isValid;
+    } catch (error) {
+      // If cookie is invalid, treat as not authenticated
+      console.error('Error validating auth cookie:', error);
+      isAuthenticated = false;
+    }
+  }
 
   // If trying to access a protected route without authentication
   if (isProtectedRoute && !isAuthenticated) {
