@@ -7,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   register: (email: string, password: string, name: string) => Promise<User>;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<User>;
   loginWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
   completeOAuthLogin: (code: string) => Promise<User>;
   logout: () => void;
@@ -25,11 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check if already logged in
     const loadUser = async () => {
       setIsLoading(true);
-      
+
       try {
         // Get current user from pocketbase if authenticated
         if (pbApi.isAuthenticated) {
           setUser(pbApi.currentUser);
+          // Update last activity time when user is loaded
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lastActivity', Date.now().toString());
+          }
         }
       } catch (error) {
         console.error('Error loading user:', error);
@@ -44,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Subscribe to auth state changes
     pbApi.client.authStore.onChange(() => {
       setUser(pbApi.currentUser);
+      // Update last activity time on auth changes
+      if (typeof window !== 'undefined' && pbApi.isAuthenticated) {
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
     });
   }, []);
 
@@ -58,11 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     setIsLoading(true);
     try {
       const user = await pbApi.login(email, password);
       setUser(user);
+      // Store remember me preference and last activity
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('rememberMe', rememberMe.toString());
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
       return user;
     } finally {
       setIsLoading(false);
@@ -95,6 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     pbApi.logout();
     setUser(null);
+    // Redirect to login page after logout
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login?loggedOut=true';
+    }
   };
 
   const updateProfile = async (data: Partial<User>) => {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { pbApi } from "@/lib/api/pocketbase";
 import { tmdbApi } from "@/lib/api";
@@ -18,7 +19,9 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [poster, setPoster] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,10 +29,22 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Handle OAuth redirect
+  // Handle OAuth redirect and logout message
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const loggedOut = searchParams.get("loggedOut");
+    const passwordReset = searchParams.get("passwordReset");
+
+    // Show success message if user just logged out
+    if (loggedOut === "true") {
+      setSuccessMessage("You have been logged out successfully.");
+    }
+
+    // Show success message if password was reset
+    if (passwordReset === "true") {
+      setSuccessMessage("Your password has been reset successfully. Please login with your new password.");
+    }
 
     // If we have a code and state, we're in the OAuth callback
     if (code && state) {
@@ -71,8 +86,10 @@ export function LoginForm({
     setError("");
 
     try {
-      await login(email, password);
-      router.push("/"); // Redirect to home page after successful login
+      await login(email, password, rememberMe);
+      // Redirect to original page or home
+      const redirectTo = searchParams.get("redirectTo") || "/";
+      router.push(redirectTo);
     } catch (error) {
       console.error("Login error:", error);
       setError("Invalid email or password. Please try again.");
@@ -108,6 +125,12 @@ export function LoginForm({
                 </p>
               </div>
 
+              {successMessage && (
+                <div className="bg-green-50 text-green-700 text-sm p-3 rounded-md border border-green-200">
+                  {successMessage}
+                </div>
+              )}
+
               {error && (
                 <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
                   {error}
@@ -130,7 +153,7 @@ export function LoginForm({
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
                   <a
-                    href="#"
+                    href="/forgot-password"
                     className="ml-auto text-sm underline-offset-2 hover:underline"
                   >
                     Forgot your password?
@@ -144,6 +167,20 @@ export function LoginForm({
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  disabled={isLoading}
+                />
+                <Label
+                  htmlFor="rememberMe"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Remember me for 30 days
+                </Label>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Logging in..." : "Login"}

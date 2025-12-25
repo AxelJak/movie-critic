@@ -41,15 +41,37 @@ class PocketBaseService {
     try {
       this.pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
 
-      // Load auth data from localStorage when in browser
+      // Load auth data from cookies when in browser
       if (typeof window !== "undefined") {
+        // Load existing auth from cookies
         this.pb.authStore.loadFromCookie(document.cookie);
 
-        // Add auth state change listener
+        // Add auth state change listener to sync cookies
         this.pb.authStore.onChange(() => {
-          document.cookie = this.pb.authStore.exportToCookie({
-            httpOnly: false,
-          });
+          // Get remember me preference
+          const rememberMe = localStorage.getItem('rememberMe') === 'true';
+          const maxAge = rememberMe ? 2592000 : 86400; // 30 days or 24 hours in seconds
+
+          if (this.pb.authStore.isValid) {
+            // Use PocketBase's built-in cookie export
+            document.cookie = this.pb.authStore.exportToCookie({
+              httpOnly: false,
+              secure: window.location.protocol === 'https:',
+              sameSite: 'Lax',
+              path: '/',
+            });
+
+            // Read the cookie value that was just set
+            const match = document.cookie.match(/pb_auth=([^;]+)/);
+            if (match && match[1]) {
+              // Re-set with explicit Max-Age
+              const securePart = window.location.protocol === 'https:' ? '; Secure' : '';
+              document.cookie = `pb_auth=${match[1]}; Path=/; SameSite=Lax${securePart}; Max-Age=${maxAge}`;
+            }
+          } else {
+            // Clear the cookie when logging out
+            document.cookie = 'pb_auth=; Path=/; Max-Age=0';
+          }
         });
       }
     } catch (error) {
@@ -195,6 +217,28 @@ class PocketBaseService {
   }
 
   /**
+   * Request password reset
+   */
+  async requestPasswordReset(email: string): Promise<boolean> {
+    await this.pb.collection("users").requestPasswordReset(email);
+    return true;
+  }
+
+  /**
+   * Confirm password reset
+   */
+  async confirmPasswordReset(
+    token: string,
+    password: string,
+    passwordConfirm: string
+  ): Promise<boolean> {
+    await this.pb
+      .collection("users")
+      .confirmPasswordReset(token, password, passwordConfirm);
+    return true;
+  }
+
+  /**
    * Update user profile
    */
   async updateProfile(data: Partial<User>): Promise<User> {
@@ -221,6 +265,26 @@ class PocketBaseService {
     const user = await this.pb
       .collection("users")
       .update<User>(userId!, formData);
+
+    return user;
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+    newPasswordConfirm: string
+  ): Promise<User> {
+    if (!this.isAuthenticated) throw new Error("User not authenticated");
+
+    const userId = this.currentUser?.id;
+    const user = await this.pb.collection("users").update<User>(userId!, {
+      oldPassword,
+      password: newPassword,
+      passwordConfirm: newPasswordConfirm,
+    });
 
     return user;
   }
