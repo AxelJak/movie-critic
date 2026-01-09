@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAuthenticated: pbApi.isAuthenticated,
+        isAuthenticated: !!user,
         register,
         login,
         loginWithOAuth,

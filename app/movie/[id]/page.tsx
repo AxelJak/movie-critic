@@ -3,7 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Review } from "@/lib/api/types";
-import { pbApi } from "@/lib/api/pocketbase";
+import { getPocketBaseServer } from "@/lib/api/pocketbase-server";
+import { MoviesRecord, ReviewsResponse } from "@/lib/api/pocketbase-types";
 import { tmdbApi } from "@/lib/api/tmdb";
 import { formatDate, formatRuntime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -98,15 +99,26 @@ async function getMovieData(id: string) {
     let reviews: ExpandedReview[] = [];
 
     try {
-      const existingMovie = await pbApi.getMovieByTmdbId(parseInt(id));
+      const pb = await getPocketBaseServer();
+
+      // Get movie by TMDB ID
+      const existingMovie = await pb
+        .collection("movies")
+        .getFirstListItem<MoviesRecord>(`tmdb_id=${parseInt(id)}`);
+
       if (existingMovie) {
         pocketbaseMovieId = existingMovie.id;
 
         // If we have the movie in our database, fetch reviews
         if (pocketbaseMovieId) {
           try {
-            const reviewsResponse =
-              await pbApi.getMovieReviews(pocketbaseMovieId);
+            const reviewsResponse = await pb
+              .collection("reviews")
+              .getList<ReviewsResponse<{ user: { id: string; name: string; avatar: string } }>>(1, 50, {
+                filter: `movie="${pocketbaseMovieId}"`,
+                expand: "user",
+                sort: "-created",
+              });
             reviews = reviewsResponse.items as unknown as ExpandedReview[];
           } catch (reviewError) {
             console.error("Error fetching reviews:", reviewError);

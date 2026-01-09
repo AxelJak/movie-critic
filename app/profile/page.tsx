@@ -49,25 +49,16 @@ async function getUserReviewsAndStats(): Promise<{
     const average = totalRating / reviews.items.length;
 
     const genreCounts = new Map<string, number>();
-    const processedMovies = new Set<string>();
-    const moviePromises = [];
 
     for (const review of reviews.items) {
-      if (!processedMovies.has(review.movie)) {
-        processedMovies.add(review.movie);
-        moviePromises.push(
-          pb.collection("movies").getOne<MoviesRecord>(review.movie)
-        );
-      }
-    }
-
-    const movies = await Promise.all(moviePromises);
-
-    for (const movie of movies) {
-      const genres = movie.genres as unknown as MovieGenresRecord[] || [];
-      for (const genre of genres) {
-        const currentCount = genreCounts.get(genre.name) || 0;
-        genreCounts.set(genre.name, currentCount + 1);
+      // Use the already-expanded movie data
+      const movie = review.expand?.movie;
+      if (movie) {
+        const genres = movie.genres as unknown as MovieGenresRecord[] || [];
+        for (const genre of genres) {
+          const currentCount = genreCounts.get(genre.name) || 0;
+          genreCounts.set(genre.name, currentCount + 1);
+        }
       }
     }
 
