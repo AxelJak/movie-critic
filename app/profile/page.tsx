@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import ProfileClient from "@/components/ProfileClient";
 import { getPocketBaseServer } from "@/lib/api/pocketbase-server";
 import { ListResult } from "pocketbase";
-import { MoviesRecord, ReviewsResponse, MovieGenresRecord } from "@/lib/api/pocketbase-types";
+import { MoviesRecord, ReviewsRecord, MovieGenresRecord } from "@/lib/api/pocketbase-types";
+
+// Type for reviews with expanded movie data
+type ReviewWithMovie = ReviewsRecord & {
+  expand?: {
+    movie?: MoviesRecord;
+  };
+};
 
 interface Stats {
   totalReviews: number;
@@ -14,7 +21,7 @@ interface Stats {
 }
 
 async function getUserReviewsAndStats(): Promise<{
-  reviews: ListResult<ReviewsResponse<MoviesRecord>>;
+  reviews: ListResult<ReviewWithMovie>;
   stats: Stats;
 }> {
   const pb = await getPocketBaseServer();
@@ -28,7 +35,7 @@ async function getUserReviewsAndStats(): Promise<{
   // Fetch user reviews with expanded movie data
   const reviews = await pb
     .collection("reviews")
-    .getList<ReviewsResponse<MoviesRecord>>(1, 20, {
+    .getList<ReviewWithMovie>(1, 20, {
       expand: "movie",
       filter: `user="${userId}"`,
       sort: "-created",
@@ -43,7 +50,7 @@ async function getUserReviewsAndStats(): Promise<{
 
   if (reviews.items.length > 0) {
     const totalRating = reviews.items.reduce(
-      (sum, review) => sum + review.rating,
+      (sum, review) => sum + (review.rating || 0),
       0,
     );
     const average = totalRating / reviews.items.length;
