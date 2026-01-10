@@ -1,6 +1,5 @@
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
-import HeaderNav from "@/components/HeaderNav";
 import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 
@@ -11,7 +10,6 @@ export default function Header() {
         <Link href="/" className="font-bold text-xl mr-8">
           MovieCritic
         </Link>
-        <HeaderNav />
         <div className="ml-auto flex items-center gap-2">
           <SearchBar />
           <Button
