@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic';
 function ReviewsSkeleton() {
   return (
     <>
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i} className="w-full max-w-2xl h-48 bg-gray-100 dark:bg-gray-800 animate-pulse" />
+      {Array.from({ length: 10 }).map((_, i) => (
+        <Card key={i} className="w-full aspect-[2/3] bg-gray-100 dark:bg-gray-800 animate-pulse" />
       ))}
     </>
   );
@@ -16,10 +16,13 @@ function ReviewsSkeleton() {
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-4 pb-12 gap-8 sm:p-8 sm:pb-20 sm:gap-16 md:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-4 sm:gap-[32px] row-start-2 items-center sm:items-start w-full max-w-4xl">
+    <div className="min-h-screen p-4 pb-12 sm:p-8 sm:pb-20 md:p-20 font-[family-name:var(--font-geist-sans)]">
+      <main className="w-full max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Latest Reviewed Movies</h1>
         <Suspense fallback={<ReviewsSkeleton />}>
-          <MovieReviewsList />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <MovieReviewsList />
+          </div>
         </Suspense>
       </main>
     </div>
