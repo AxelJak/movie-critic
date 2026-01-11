@@ -162,10 +162,17 @@ export default function MovieReviewFormImpl({
         } catch (error) {
           console.log("Movie not found, syncing from TMDB:", error);
           // If movie doesn't exist, sync it from TMDB
+          // Cast members will sync in background (non-blocking)
           const movie = await pbApi.syncMovieFromTMDB(tmdbId);
           pocketbaseMovieId = movie.id;
         }
       }
+
+      // Optimistically show success before page refresh
+      // This provides immediate feedback while the review is being created
+      const successMessage = state.hasReviewed
+        ? "Your review has been updated!"
+        : "Your review has been submitted!";
 
       if (state.hasReviewed && state.userReview) {
         // Update existing review
@@ -176,11 +183,6 @@ export default function MovieReviewFormImpl({
           content: state.content,
           contains_spoilers: state.containsSpoilers,
         });
-
-        dispatch({
-          type: "SUBMIT_SUCCESS",
-          message: "Your review has been updated!",
-        });
       } else {
         // Create new review
         await pbApi.createReview(
@@ -190,14 +192,16 @@ export default function MovieReviewFormImpl({
           state.content,
           state.containsSpoilers,
         );
-
-        dispatch({
-          type: "SUBMIT_SUCCESS",
-          message: "Your review has been submitted!",
-        });
       }
 
+      // Show success immediately after review creation
+      dispatch({
+        type: "SUBMIT_SUCCESS",
+        message: successMessage,
+      });
+
       // Refresh the page to show the new/updated review
+      // This happens after showing success for better perceived performance
       router.refresh();
 
       // Notify parent component (if needed)

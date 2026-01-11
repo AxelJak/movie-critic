@@ -343,12 +343,15 @@ class PocketBaseService {
 
         console.log("Created movie in PocketBase:", movie.id);
 
-        // Sync cast members
-        await this.syncCastMembers(
+        // Sync cast members in background (non-blocking)
+        // This improves perceived performance for review submissions
+        this.syncCastMembers(
           movie.id,
           tmdbMovie.id,
           tmdbApi.getCast(tmdbMovie),
-        );
+        ).catch((err) => {
+          console.error("Background cast sync failed for movie:", movie.id, err);
+        });
 
         return movie;
       } catch (error) {
