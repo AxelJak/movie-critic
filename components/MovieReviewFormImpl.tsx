@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { pbApi } from "@/lib/api/pocketbase";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, Star } from "lucide-react";
 import { ReviewsResponse } from "@/lib/api/pocketbase-types";
 
 // Form state management
@@ -104,6 +105,7 @@ export default function MovieReviewFormImpl({
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(formReducer, initialFormState);
+  const [isPending, startTransition] = useTransition();
 
   // Check if user has already reviewed this movie
   useEffect(() => {
@@ -128,6 +130,16 @@ export default function MovieReviewFormImpl({
 
     checkExistingReview();
   }, [isAuthenticated, movieId]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const form = e.currentTarget.form;
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,23 +168,37 @@ export default function MovieReviewFormImpl({
       let pocketbaseMovieId = movieId;
 
       if (!pocketbaseMovieId) {
-        try {
-          const movie = await pbApi.getMovieByTmdbId(tmdbId);
-          pocketbaseMovieId = movie?.id || "";
-        } catch (error) {
-          console.log("Movie not found, syncing from TMDB:", error);
-          // If movie doesn't exist, sync it from TMDB
-          // Cast members will sync in background (non-blocking)
-          const movie = await pbApi.syncMovieFromTMDB(tmdbId);
+        // Try to get the movie from PocketBase by TMDB ID
+        const movie = await pbApi.getMovieByTmdbId(tmdbId);
+
+        if (movie?.id) {
           pocketbaseMovieId = movie.id;
+        } else {
+          // Movie doesn't exist, sync it from TMDB using the API route
+          console.log("Movie not found in PocketBase, syncing from TMDB:", tmdbId);
+
+          const response = await fetch('/api/movies/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tmdbId }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to sync movie');
+          }
+
+          const syncedMovie = await response.json();
+          pocketbaseMovieId = syncedMovie.id;
         }
       }
 
-      // Optimistically show success before page refresh
-      // This provides immediate feedback while the review is being created
-      const successMessage = state.hasReviewed
-        ? "Your review has been updated!"
-        : "Your review has been submitted!";
+      // Ensure we have a valid movie ID before creating/updating review
+      if (!pocketbaseMovieId) {
+        throw new Error("Failed to get or create movie in database");
+      }
 
       if (state.hasReviewed && state.userReview) {
         // Update existing review
@@ -183,6 +209,11 @@ export default function MovieReviewFormImpl({
           content: state.content,
           contains_spoilers: state.containsSpoilers,
         });
+
+        dispatch({
+          type: "SUBMIT_SUCCESS",
+          message: "Your review has been updated!",
+        });
       } else {
         // Create new review
         await pbApi.createReview(
@@ -192,17 +223,17 @@ export default function MovieReviewFormImpl({
           state.content,
           state.containsSpoilers,
         );
+
+        dispatch({
+          type: "SUBMIT_SUCCESS",
+          message: "Your review has been submitted!",
+        });
       }
 
-      // Show success immediately after review creation
-      dispatch({
-        type: "SUBMIT_SUCCESS",
-        message: successMessage,
+      // Refresh the page in the background without blocking
+      startTransition(() => {
+        router.refresh();
       });
-
-      // Refresh the page to show the new/updated review
-      // This happens after showing success for better perceived performance
-      router.refresh();
 
       // Notify parent component (if needed)
       if (onReviewSubmitted) {
@@ -240,28 +271,36 @@ export default function MovieReviewFormImpl({
   }
 
   return (
-    <Card className="p-4">
-      <form onSubmit={handleSubmit}>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="rating" className="block mb-1">
-              Rating (1-10)
+    <Card className="p-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {state.hasReviewed && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+            <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm text-blue-600 dark:text-blue-400">
+              You&apos;ve already reviewed this movie
+            </span>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+            <Label htmlFor="rating" className="text-base font-semibold">
+              Your Rating
             </Label>
-            {state.hasReviewed && (
-              <span className="text-sm text-muted-foreground">
-                You&apos;ve already reviewed this movie
-              </span>
-            )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
               <Button
                 key={value}
                 type="button"
                 variant={state.rating === value ? "default" : "outline"}
                 size="sm"
-                className="w-8 h-8 p-0"
+                className={`w-9 h-9 p-0 transition-all ${state.rating === value
+                    ? "scale-110 shadow-md"
+                    : "hover:scale-105"
+                  }`}
                 onClick={() =>
                   dispatch({
                     type: "SET_FIELD",
@@ -274,110 +313,111 @@ export default function MovieReviewFormImpl({
               </Button>
             ))}
           </div>
-
-          <div>
-            <Label htmlFor="title" className="block mb-1">
-              Review Title (Optional)
-            </Label>
-            <Input
-              id="title"
-              value={state.title}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_FIELD",
-                  field: "title",
-                  value: e.target.value,
-                })
-              }
-              placeholder="Give your review a title"
-              maxLength={100}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="content" className="block mb-1">
-              Review (Optional)
-            </Label>
-            <Tabs defaultValue="write">
-              <TabsList className="mb-2">
-                <TabsTrigger value="write">Write</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-              </TabsList>
-              <TabsContent value="write">
-                <textarea
-                  id="content"
-                  value={state.content}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_FIELD",
-                      field: "content",
-                      value: e.target.value,
-                    })
-                  }
-                  className="w-full h-32 p-2 border rounded-md border-input bg-background"
-                  placeholder="Share your thoughts about the movie..."
-                ></textarea>
-              </TabsContent>
-              <TabsContent value="preview">
-                <div className="w-full h-32 p-2 overflow-auto border rounded-md border-input bg-muted">
-                  {state.content ? (
-                    <div className="prose prose-sm max-w-none">
-                      {state.content}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      Nothing to preview
-                    </span>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="spoiler"
-              checked={state.containsSpoilers}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_FIELD",
-                  field: "containsSpoilers",
-                  value: e.target.checked,
-                })
-              }
-              className="mr-2 h-4 w-4"
-            />
-            <Label htmlFor="spoiler" className="text-sm">
-              This review contains spoilers
-            </Label>
-          </div>
-
-          {state.error && (
-            <div className="p-2 bg-destructive/10 text-destructive rounded-md text-sm">
-              {state.error}
-            </div>
-          )}
-
-          {state.success && (
-            <div className="p-2 bg-green-100 text-green-800 rounded-md text-sm flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              {state.success}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            disabled={state.isSubmitting}
-            className="w-full"
-          >
-            {state.isSubmitting
-              ? "Submitting..."
-              : state.hasReviewed
-                ? "Update Review"
-                : "Submit Review"}
-          </Button>
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="title" className="text-sm font-medium">
+            Review Title <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="title"
+            value={state.title}
+            onChange={(e) =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "title",
+                value: e.target.value,
+              })
+            }
+            placeholder="Give your review a catchy title..."
+            maxLength={100}
+            className="h-10"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="content" className="text-sm font-medium">
+            Your Thoughts <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Tabs defaultValue="write" className="w-full">
+            <TabsList className="mb-2 w-full sm:w-auto">
+              <TabsTrigger value="write" className="flex-1 sm:flex-none">Write</TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1 sm:flex-none">Preview</TabsTrigger>
+            </TabsList>
+            <TabsContent value="write" className="mt-0">
+              <Textarea
+                id="content"
+                value={state.content}
+                onChange={(e) =>
+                  dispatch({
+                    type: "SET_FIELD",
+                    field: "content",
+                    value: e.target.value,
+                  })
+                }
+                onKeyDown={handleKeyDown}
+                placeholder="Share your thoughts about the movie... (Cmd+Enter to submit)"
+                className="min-h-[120px] resize-y"
+              />
+            </TabsContent>
+            <TabsContent value="preview" className="mt-0">
+              <div className="min-h-[120px] p-3 border rounded-md bg-muted overflow-auto">
+                {state.content ? (
+                  <p className="text-sm whitespace-pre-wrap">{state.content}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Nothing to preview yet...
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+          <input
+            type="checkbox"
+            id="spoiler"
+            checked={state.containsSpoilers}
+            onChange={(e) =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "containsSpoilers",
+                value: e.target.checked,
+              })
+            }
+            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary cursor-pointer"
+          />
+          <Label htmlFor="spoiler" className="text-sm cursor-pointer">
+            This review contains spoilers
+          </Label>
+        </div>
+
+        {state.error && (
+          <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
+            <span className="text-sm">{state.error}</span>
+          </div>
+        )}
+
+        {state.success && (
+          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">{state.success}</span>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={state.isSubmitting}
+          className="w-full h-11 text-base font-semibold"
+          size="lg"
+        >
+          {state.isSubmitting
+            ? "Submitting..."
+            : state.hasReviewed
+              ? "Update Review"
+              : "Submit Review"}
+        </Button>
       </form>
     </Card>
   );

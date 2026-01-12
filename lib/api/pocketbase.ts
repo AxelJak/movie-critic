@@ -108,9 +108,19 @@ class PocketBaseService {
    * Get current user
    */
   get currentUser(): User | null {
-    return this.isAuthenticated
-      ? (this.pb.authStore.record as unknown as User)
-      : null;
+    if (!this.isAuthenticated) return null;
+
+    const user = this.pb.authStore.record as unknown as User;
+
+    // Transform avatar filename to full URL if it exists
+    if (user && user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
+
+    return user;
   }
 
   /**
@@ -249,6 +259,14 @@ class PocketBaseService {
       .collection(Collections.Users)
       .update<User>(userId!, data);
 
+    // Transform avatar filename to full URL if it exists
+    if (user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
+
     return user;
   }
 
@@ -265,6 +283,14 @@ class PocketBaseService {
     const user = await this.pb
       .collection("users")
       .update<User>(userId!, formData);
+
+    // Transform avatar filename to full URL
+    if (user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
 
     return user;
   }
