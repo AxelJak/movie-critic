@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -87,16 +87,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-// Function to fetch movie data
+// Function to fetch basic movie data (fast)
 async function getMovieData(id: string) {
   try {
     // Always fetch from TMDB first as it's more reliable
     const movie = await tmdbApi.getMovieDetails(parseInt(id));
     const cast = tmdbApi.getCast(movie);
 
-    // Try to get the movie from our database by TMDB ID
+    // Try to get the movie ID from our database by TMDB ID
     let pocketbaseMovieId = "";
-    let reviews: ExpandedReview[] = [];
 
     try {
       const pb = await getPocketBaseServer();
@@ -108,46 +107,168 @@ async function getMovieData(id: string) {
 
       if (existingMovie) {
         pocketbaseMovieId = existingMovie.id;
-
-        // If we have the movie in our database, fetch reviews
-        if (pocketbaseMovieId) {
-          try {
-            const reviewsResponse = await pb
-              .collection("reviews")
-              .getList<ReviewsResponse<{ user: { id: string; name: string; avatar: string } }>>(1, 50, {
-                filter: `movie="${pocketbaseMovieId}"`,
-                expand: "user",
-                sort: "-created",
-              });
-            reviews = reviewsResponse.items as unknown as ExpandedReview[];
-          } catch (reviewError) {
-            console.error("Error fetching reviews:", reviewError);
-            // Continue with empty reviews if there's an error
-          }
-        }
       }
-    } catch (pbError) {
-      console.error("PocketBase error:", pbError);
+    } catch (pbError: unknown) {
+      // Only log errors that aren't 404 (movie not yet synced to PocketBase)
+      // 404 is expected when the movie hasn't been reviewed yet
+      if (pbError && typeof pbError === 'object' && 'status' in pbError && pbError.status !== 404) {
+        console.error("PocketBase error:", pbError);
+      }
       // Continue with empty PocketBase data - we still have the TMDB data
       // so the page can render with basic information
     }
 
-    return { movie, cast, reviews, pocketbaseMovieId };
+    return { movie, cast, pocketbaseMovieId };
   } catch (error) {
     console.error("Error fetching movie data:", error);
     return notFound();
   }
 }
 
-export default async function MovieDetailsPage({ params }: PageProps) {
-  const { id } = await params;
-  const { movie, cast, reviews, pocketbaseMovieId } = await getMovieData(id);
+// Fetch reviews data - cached to deduplicate requests
+const getReviewsData = cache(async (pocketbaseMovieId: string) => {
+  let reviews: ExpandedReview[] = [];
 
-  // Get average site rating
+  if (pocketbaseMovieId) {
+    try {
+      const pb = await getPocketBaseServer();
+      const reviewsResponse = await pb
+        .collection("reviews")
+        .getList<ReviewsResponse<{ user: { id: string; name: string; avatar: string } }>>(1, 50, {
+          filter: `movie="${pocketbaseMovieId}"`,
+          expand: "user",
+          sort: "-created",
+        });
+
+      // Transform avatar filenames to full URLs
+      reviews = reviewsResponse.items.map(review => {
+        if (review.expand?.user?.avatar && !review.expand.user.avatar.startsWith('http')) {
+          return {
+            ...review,
+            expand: {
+              ...review.expand,
+              user: {
+                ...review.expand.user,
+                avatar: pb.files.getURL(review.expand.user as any, review.expand.user.avatar),
+              },
+            },
+          } as unknown as ExpandedReview;
+        }
+        return review as unknown as ExpandedReview;
+      });
+    } catch (reviewError: unknown) {
+      // Only log unexpected errors
+      if (reviewError && typeof reviewError === 'object' && 'status' in reviewError && reviewError.status !== 404) {
+        console.error("Error fetching reviews:", reviewError);
+      }
+    }
+  }
+
+  return reviews;
+});
+
+// Site rating component (async, can be loaded with Suspense)
+async function SiteRating({ pocketbaseMovieId }: { pocketbaseMovieId: string }) {
+  const reviews = await getReviewsData(pocketbaseMovieId);
+
   const siteRating =
     reviews.length > 0
       ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
       : 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-xs sm:text-sm font-medium">Our Rating</span>
+      <div className="text-2xl sm:text-3xl font-bold mt-1">
+        {siteRating.toFixed(1)}
+        <span className="text-sm sm:text-base font-normal text-muted-foreground">
+          /10
+        </span>
+      </div>
+      <span className="text-xs text-muted-foreground mt-1">
+        {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+      </span>
+    </div>
+  );
+}
+
+// Reviews list component (async, can be loaded with Suspense)
+async function ReviewsList({ pocketbaseMovieId }: { pocketbaseMovieId: string }) {
+  const reviews = await getReviewsData(pocketbaseMovieId);
+
+  if (reviews.length === 0) {
+    return (
+      <div className="text-center p-6 sm:p-8 border border-dashed rounded-lg">
+        <p className="text-sm sm:text-base text-muted-foreground">No reviews yet</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          Be the first to share your thoughts!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      {reviews.map((review) => (
+        <Card key={review.id} className="p-3 sm:p-4">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
+              <Image
+                src={
+                  review.expand.user?.avatar ||
+                  "/placeholder-avatar.jpg"
+                }
+                alt={review.expand.user.name}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start gap-2">
+                <span className="font-medium text-sm sm:text-base truncate">
+                  {review.expand.user.name}
+                </span>
+                <div className="flex items-center flex-shrink-0">
+                  <span className="font-bold text-sm sm:text-base">{review.rating}</span>
+                  <span className="text-xs text-muted-foreground">
+                    /10
+                  </span>
+                </div>
+              </div>
+              {review.title && (
+                <h4 className="font-medium mt-1 text-sm sm:text-base">{review.title}</h4>
+              )}
+              {review.content && (
+                <p className="text-xs sm:text-sm mt-1 text-muted-foreground line-clamp-3">
+                  {review.contains_spoilers && (
+                    <span className="text-xs font-medium text-destructive mr-1">
+                      [SPOILERS]
+                    </span>
+                  )}
+                  {review.content}
+                </p>
+              )}
+              <div className="text-xs text-muted-foreground mt-2">
+                {formatDate(review.created)}
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+
+      {reviews.length > 3 && (
+        <Button variant="outline" className="w-full text-sm sm:text-base">
+          View All {reviews.length} Reviews
+        </Button>
+      )}
+    </div>
+  );
+}
+
+export default async function MovieDetailsPage({ params }: PageProps) {
+  const { id } = await params;
+  const { movie, cast, pocketbaseMovieId } = await getMovieData(id);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -211,18 +332,15 @@ export default async function MovieDetailsPage({ params }: PageProps) {
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Ratings Section */}
             <div className="flex flex-shrink-0 flex-row justify-center sm:justify-start gap-6 sm:gap-8 p-4 sm:p-6 bg-card rounded-lg shadow">
-              <div className="flex flex-col items-center">
-                <span className="text-xs sm:text-sm font-medium">Our Rating</span>
-                <div className="text-2xl sm:text-3xl font-bold mt-1">
-                  {siteRating.toFixed(1)}
-                  <span className="text-sm sm:text-base font-normal text-muted-foreground">
-                    /10
-                  </span>
+              <Suspense fallback={
+                <div className="flex flex-col items-center animate-pulse">
+                  <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                  <div className="h-8 w-16 bg-muted rounded mb-1"></div>
+                  <div className="h-3 w-24 bg-muted rounded"></div>
                 </div>
-                <span className="text-xs text-muted-foreground mt-1">
-                  {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
-                </span>
-              </div>
+              }>
+                <SiteRating pocketbaseMovieId={pocketbaseMovieId} />
+              </Suspense>
 
               <div className="h-12 w-px bg-border" />
 
@@ -268,70 +386,24 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                   />
                 </div>
 
-                {reviews.length > 0 ? (
+                <Suspense fallback={
                   <div className="space-y-3 sm:space-y-4">
-                    {reviews.map((review) => (
-                      <Card key={review.id} className="p-3 sm:p-4">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-3 sm:p-4 animate-pulse">
                         <div className="flex items-start gap-2 sm:gap-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
-                            <Image
-                              src={
-                                review.expand.user?.avatar ||
-                                "/placeholder-avatar.jpg"
-                              }
-                              alt={review.expand.user.name}
-                              width={40}
-                              height={40}
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start gap-2">
-                              <span className="font-medium text-sm sm:text-base truncate">
-                                {review.expand.user.name}
-                              </span>
-                              <div className="flex items-center flex-shrink-0">
-                                <span className="font-bold text-sm sm:text-base">{review.rating}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  /10
-                                </span>
-                              </div>
-                            </div>
-                            {review.title && (
-                              <h4 className="font-medium mt-1 text-sm sm:text-base">{review.title}</h4>
-                            )}
-                            {review.content && (
-                              <p className="text-xs sm:text-sm mt-1 text-muted-foreground line-clamp-3">
-                                {review.contains_spoilers && (
-                                  <span className="text-xs font-medium text-destructive mr-1">
-                                    [SPOILERS]
-                                  </span>
-                                )}
-                                {review.content}
-                              </p>
-                            )}
-                            <div className="text-xs text-muted-foreground mt-2">
-                              {formatDate(review.created)}
-                            </div>
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div className="h-4 bg-muted rounded w-1/3"></div>
+                            <div className="h-3 bg-muted rounded w-full"></div>
+                            <div className="h-3 bg-muted rounded w-2/3"></div>
                           </div>
                         </div>
                       </Card>
                     ))}
-
-                    {reviews.length > 3 && (
-                      <Button variant="outline" className="w-full text-sm sm:text-base">
-                        View All {reviews.length} Reviews
-                      </Button>
-                    )}
                   </div>
-                ) : (
-                  <div className="text-center p-6 sm:p-8 border border-dashed rounded-lg">
-                    <p className="text-sm sm:text-base text-muted-foreground">No reviews yet</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                      Be the first to share your thoughts!
-                    </p>
-                  </div>
-                )}
+                }>
+                  <ReviewsList pocketbaseMovieId={pocketbaseMovieId} />
+                </Suspense>
               </div>
             </div>
 
@@ -384,70 +456,24 @@ export default async function MovieDetailsPage({ params }: PageProps) {
                 />
               </div>
 
-              {reviews.length > 0 ? (
+              <Suspense fallback={
                 <div className="space-y-3 sm:space-y-4">
-                  {reviews.map((review) => (
-                    <Card key={review.id} className="p-3 sm:p-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-3 sm:p-4 animate-pulse">
                       <div className="flex items-start gap-2 sm:gap-3">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
-                          <Image
-                            src={
-                              review.expand.user?.avatar ||
-                              "/placeholder-avatar.jpg"
-                            }
-                            alt={review.expand.user.name}
-                            width={40}
-                            height={40}
-                            className="object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="font-medium text-sm sm:text-base truncate">
-                              {review.expand.user.name}
-                            </span>
-                            <div className="flex items-center flex-shrink-0">
-                              <span className="font-bold text-sm sm:text-base">{review.rating}</span>
-                              <span className="text-xs text-muted-foreground">
-                                /10
-                              </span>
-                            </div>
-                          </div>
-                          {review.title && (
-                            <h4 className="font-medium mt-1 text-sm sm:text-base">{review.title}</h4>
-                          )}
-                          {review.content && (
-                            <p className="text-xs sm:text-sm mt-1 text-muted-foreground line-clamp-3">
-                              {review.contains_spoilers && (
-                                <span className="text-xs font-medium text-destructive mr-1">
-                                  [SPOILERS]
-                                </span>
-                              )}
-                              {review.content}
-                            </p>
-                          )}
-                          <div className="text-xs text-muted-foreground mt-2">
-                            {formatDate(review.created)}
-                          </div>
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex-shrink-0"></div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="h-4 bg-muted rounded w-1/3"></div>
+                          <div className="h-3 bg-muted rounded w-full"></div>
+                          <div className="h-3 bg-muted rounded w-2/3"></div>
                         </div>
                       </div>
                     </Card>
                   ))}
-
-                  {reviews.length > 3 && (
-                    <Button variant="outline" className="w-full text-sm sm:text-base">
-                      View All {reviews.length} Reviews
-                    </Button>
-                  )}
                 </div>
-              ) : (
-                <div className="text-center p-6 sm:p-8 border border-dashed rounded-lg">
-                  <p className="text-sm sm:text-base text-muted-foreground">No reviews yet</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    Be the first to share your thoughts!
-                  </p>
-                </div>
-              )}
+              }>
+                <ReviewsList pocketbaseMovieId={pocketbaseMovieId} />
+              </Suspense>
             </div>
           </div>
         </div>

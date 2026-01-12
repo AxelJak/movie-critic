@@ -108,9 +108,19 @@ class PocketBaseService {
    * Get current user
    */
   get currentUser(): User | null {
-    return this.isAuthenticated
-      ? (this.pb.authStore.record as unknown as User)
-      : null;
+    if (!this.isAuthenticated) return null;
+
+    const user = this.pb.authStore.record as unknown as User;
+
+    // Transform avatar filename to full URL if it exists
+    if (user && user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
+
+    return user;
   }
 
   /**
@@ -249,6 +259,14 @@ class PocketBaseService {
       .collection(Collections.Users)
       .update<User>(userId!, data);
 
+    // Transform avatar filename to full URL if it exists
+    if (user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
+
     return user;
   }
 
@@ -265,6 +283,14 @@ class PocketBaseService {
     const user = await this.pb
       .collection("users")
       .update<User>(userId!, formData);
+
+    // Transform avatar filename to full URL
+    if (user.avatar && !user.avatar.startsWith('http')) {
+      return {
+        ...user,
+        avatar: this.pb.files.getURL(this.pb.authStore.record!, user.avatar),
+      };
+    }
 
     return user;
   }
@@ -343,12 +369,15 @@ class PocketBaseService {
 
         console.log("Created movie in PocketBase:", movie.id);
 
-        // Sync cast members
-        await this.syncCastMembers(
+        // Sync cast members in background (non-blocking)
+        // This improves perceived performance for review submissions
+        this.syncCastMembers(
           movie.id,
           tmdbMovie.id,
           tmdbApi.getCast(tmdbMovie),
-        );
+        ).catch((err) => {
+          console.error("Background cast sync failed for movie:", movie.id, err);
+        });
 
         return movie;
       } catch (error) {

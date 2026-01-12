@@ -24,7 +24,7 @@ interface UserExpand {
 
 describe('MovieCard', () => {
   beforeEach(() => {
-    ;(tmdbApi.getImageUrl as jest.Mock).mockImplementation(
+    ; (tmdbApi.getImageUrl as jest.Mock).mockImplementation(
       (path, size) => (path ? `https://image.tmdb.org/t/p/${size}${path}` : null)
     )
   })
@@ -464,5 +464,34 @@ describe('MovieCard', () => {
     expect(screen.getByText(/TMDB rating: 8.6/)).toBeInTheDocument()
     // 8.333 rounded to one decimal = 8.3
     expect(screen.getByText(/Our rating: 8.3/)).toBeInTheDocument()
+  })
+
+  test('renders safely when expand or reviews_via_movie is missing', async () => {
+    const mockMovie: MoviesResponse<MoviesRecord, Expand> = {
+      id: 'movie1',
+      tmdb_id: 123,
+      title: 'Test Movie',
+      original_title: 'Test Movie',
+      poster_path: '/test.jpg',
+      backdrop_path: '/backdrop.jpg',
+      release_date: '2025-01-01',
+      runtime: 120,
+      overview: 'Test overview',
+      tmdb_rating: 8.5,
+      director: 'Test Director',
+      genres: [],
+      last_synced: '2025-01-01',
+      created: '2025-01-01',
+      updated: '2025-01-01',
+      collectionId: 'movies',
+      collectionName: 'movies',
+      // @ts-ignore - testing runtime safety for missing optional property
+      expand: undefined,
+    }
+
+    const MovieCardComponent = await MovieCard({ movie: mockMovie })
+    render(MovieCardComponent)
+
+    expect(screen.getByText(/Our rating: 0/)).toBeInTheDocument()
   })
 })

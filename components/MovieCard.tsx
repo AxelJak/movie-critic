@@ -16,6 +16,7 @@ import {
   UsersResponse,
 } from "@/lib/api/pocketbase-types";
 import { tmdbApi } from "@/lib/api/tmdb";
+import { formatRuntime } from "@/lib/utils";
 
 interface Expand {
   reviews_via_movie: ReviewsResponse<UserExpand>[];
@@ -50,11 +51,11 @@ const toBase64 = (str: string) =>
 
 export default async function MovieCard({ movie }: MovieCardProps) {
   const siteRating =
-    movie.expand.reviews_via_movie.length > 0
+    movie.expand?.reviews_via_movie?.length > 0
       ? movie.expand.reviews_via_movie.reduce(
-          (sum, review) => sum + review.rating,
-          0,
-        ) / movie.expand.reviews_via_movie.length
+        (sum, review) => sum + review.rating,
+        0,
+      ) / movie.expand!.reviews_via_movie!.length
       : 0;
   return (
     <Card className="overflow-hidden py-0 w-full">
@@ -80,7 +81,7 @@ export default async function MovieCard({ movie }: MovieCardProps) {
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto">
                 <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
-                {movie.expand.reviews_via_movie &&
+                {movie.expand?.reviews_via_movie &&
                   movie.expand.reviews_via_movie.map((review) => (
                     <TabsTrigger key={review.id} value={`review-${review.id}`} className="text-xs sm:text-sm whitespace-nowrap">
                       {review.expand.user.name} {review.rating}
@@ -88,7 +89,7 @@ export default async function MovieCard({ movie }: MovieCardProps) {
                   ))}
               </TabsList>
               <TabsContent value="overview" className="text-sm sm:text-base mt-3">{movie.overview}</TabsContent>
-              {movie.expand.reviews_via_movie &&
+              {movie.expand?.reviews_via_movie &&
                 movie.expand.reviews_via_movie.map((review) => (
                   <TabsContent key={review.id} value={`review-${review.id}`} className="text-sm sm:text-base mt-3">
                     {review.content}
@@ -98,6 +99,7 @@ export default async function MovieCard({ movie }: MovieCardProps) {
           </CardContent>
           <CardFooter className="mt-auto flex flex-col sm:flex-row gap-2 sm:gap-0 sm:justify-around px-4 sm:px-6 pb-4 text-sm sm:text-base">
             <b>TMDB rating: {Math.round(movie.tmdb_rating * 10) / 10}</b>
+            {movie.runtime && <b>Runtime: {formatRuntime(movie.runtime)}</b>}
             <b>Our rating: {Math.round(siteRating * 10) / 10}</b>
           </CardFooter>
         </div>
