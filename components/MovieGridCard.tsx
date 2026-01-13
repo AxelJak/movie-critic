@@ -56,7 +56,7 @@ export default function MovieGridCard({ movie }: MovieGridCardProps) {
       : 0;
 
   return (
-    <Card className="overflow-hidden h-full flex flex-col hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden gap-2 h-full flex flex-col hover:shadow-lg transition-shadow p-0">
       <Link href={`/movie/${movie.tmdb_id}`} className="cursor-pointer">
         <div className="relative w-full aspect-[2/3]">
           <Image
@@ -70,12 +70,7 @@ export default function MovieGridCard({ movie }: MovieGridCardProps) {
           />
         </div>
       </Link>
-      <CardHeader className="px-2 py-1.5 sm:px-3 sm:py-2">
-        <Link href={`/movie/${movie.tmdb_id}`} className="hover:underline">
-          <CardTitle className="text-xs sm:text-sm line-clamp-2">{movie.title}</CardTitle>
-        </Link>
-      </CardHeader>
-      <CardFooter className="flex flex-col gap-0.5 px-2 py-1.5 sm:px-3 sm:py-2 text-xs">
+      <CardFooter className="flex flex-col gap-1 px-2 py-1 pb-2 sm:px-2.5 sm:pb-2 text-xs">
         <div className="flex justify-between w-full">
           <span className="text-muted-foreground">TMDB:</span>
           <span className="font-semibold">{Math.round(movie.tmdb_rating * 10) / 10}</span>
